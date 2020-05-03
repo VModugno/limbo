@@ -69,6 +69,8 @@ namespace limbo {
     namespace defaults {
         struct bayes_opt_boptimizer {
             BO_PARAM(int, hp_period, -1);
+           //VALE
+            BO_PARAM(bool, constrained, false);
         };
     }
 
@@ -140,29 +142,54 @@ namespace limbo {
             {
                 this->_init(sfun, afun, reset);
 
-                if (!this->_observations.empty())
-                    _model.compute(this->_samples, this->_observations);
-                else
+                // VALE initialization
+                if (!this->_observations.empty()){
+                	for(uint i = 0;i<this->_observations.size();i++){
+                		if(i==0)
+                			_model.compute(this->_samples, this->_observations[i]);
+                		else
+                			_models_constr[i-1].compute(this->_samples, this->_observations[i]);
+                	}
+                }else{
                     _model = model_t(StateFunction::dim_in(), StateFunction::dim_out());
+                	for(uint i;i<StateFunction::constr_dim_out();i++)
+                		_models_constr[i] = model_t(StateFunction::dim_in(),1);
+                }
+
 
                 acqui_optimizer_t acqui_optimizer;
 
                 while (!this->_stop(*this, afun)) {
-                    acquisition_function_t acqui(_model, this->_current_iteration);
+                	// VALE
+                    acquisition_function_t acqui(_model,_models_constr, this->_current_iteration);
+                	//acquisition_function_t acqui(_model, this->_current_iteration);
 
                     auto acqui_optimization =
                         [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
                     Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
                     Eigen::VectorXd new_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+                    //VALE
                     this->eval_and_add(sfun, new_sample);
 
                     this->_update_stats(*this, afun);
+                    // VALE update models
+                    for(uint i = 0;i<this->_observations.size();i++){
+                    	if(i == 0)
+                    		_model.add_sample(this->_samples.back(), this->_observations[i].back());
+                    	else
+                    		_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
+                    }
 
-                    _model.add_sample(this->_samples.back(), this->_observations.back());
-
+                    // VALE update hyperparameters
                     if (Params::bayes_opt_boptimizer::hp_period() > 0
-                        && (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0)
-                        _model.optimize_hyperparams();
+                        && (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0){
+                    	for(uint i = 0;i<this->_observations.size();i++){
+							if(i == 0)
+								_model.optimize_hyperparams();
+							else
+								_models_constr[i-1].optimize_hyperparams();
+                    	}
+                    }
 
                     this->_current_iteration++;
                     this->_total_iterations++;
@@ -174,25 +201,29 @@ namespace limbo {
             const Eigen::VectorXd& best_observation(const AggregatorFunction& afun = AggregatorFunction()) const
             {
                 auto rewards = std::vector<double>(this->_observations.size());
-                std::transform(this->_observations.begin(), this->_observations.end(), rewards.begin(), afun);
+                std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
                 auto max_e = std::max_element(rewards.begin(), rewards.end());
-                return this->_observations[std::distance(rewards.begin(), max_e)];
+                return this->_observations[0][std::distance(rewards.begin(), max_e)];
             }
 
             /// return the best sample so far (i.e. the argmax(f(x)))
             template <typename AggregatorFunction = FirstElem>
             const Eigen::VectorXd& best_sample(const AggregatorFunction& afun = AggregatorFunction()) const
             {
-                auto rewards = std::vector<double>(this->_observations.size());
-                std::transform(this->_observations.begin(), this->_observations.end(), rewards.begin(), afun);
+                auto rewards = std::vector<double>(this->_observations[0].size());
+                std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
                 auto max_e = std::max_element(rewards.begin(), rewards.end());
                 return this->_samples[std::distance(rewards.begin(), max_e)];
             }
 
             const model_t& model() const { return _model; }
+            // VALE
+            std::vector<model_t> models_constr() const {return _models_constr;}
 
         protected:
             model_t _model;
+            std::vector<model_t> _models_constr;
+            bool constrained;
         };
 
         namespace _default_hp {

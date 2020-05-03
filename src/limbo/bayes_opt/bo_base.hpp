@@ -216,7 +216,7 @@ namespace limbo {
             const std::string& res_dir() const { return _res_dir; }
 
             /// return the vector of points of observations (observations can be multi-dimensional, hence the VectorXd) -- f(x)
-            const std::vector<Eigen::VectorXd>& observations() const { return _observations; }
+            const std::vector <std::vector<Eigen::VectorXd>>& observations() const { return _observations; }
 
             /// return the list of the points that have been evaluated so far (x)
             const std::vector<Eigen::VectorXd>& samples() const { return _samples; }
@@ -233,14 +233,44 @@ namespace limbo {
             {
                 if (tools::is_nan_or_inf(v))
                     throw EvaluationError();
+                // add input sample (the input sample is shared among each GP)
                 _samples.push_back(s);
-                _observations.push_back(v);
+                // add output sample
+                if(_observations.empty()){ // if it is the first time doing that i have to  initialize the observations vector
+                    int i = 0;
+                	while(i<_dim_out + _constr_dim_out){
+                		std::vector<Eigen::VectorXd> cur_vec;
+                		if(i == 0){ // adding fitness value
+                			Eigen::VectorXd cur_y = Eigen::VectorXd(v.head(_dim_out));
+                			cur_vec.push_back(cur_y);
+                			i = i + _dim_out;
+                		}else{ // adding constraints value one by one
+                			Eigen::VectorXd cur_y = Eigen::VectorXd(tools::make_vector(v(i)));
+                			cur_vec.push_back(cur_y);
+                			i = i + 1;
+                		}
+                		_observations.push_back(cur_vec);
+                	}
+
+                }else{ // if _observations is already initialized I pass the values to _observations in the right order
+					uint index = 0;
+                	for(uint i = 0;i<_observations.size();i++){
+						if(index == 0){ // adding rewards
+							_observations[i].push_back(v.head(_dim_out));
+							index = index + _dim_out;
+						}else{ // adding constraints
+							_observations[i].push_back(tools::make_vector(v(index)));
+							index = index + 1;
+						}
+
+                	}
+                }
             }
 
             /// Evaluate a sample and add the result to the 'database' (sample / observations vectors) -- it does not update the model
             template <typename StateFunction>
             void eval_and_add(const StateFunction& seval, const Eigen::VectorXd& sample)
-            {
+            {	// VALE (it does not change here)
                 this->add_new_sample(sample, seval(sample));
             }
 
@@ -253,6 +283,9 @@ namespace limbo {
                     this->_total_iterations = 0;
                     this->_samples.clear();
                     this->_observations.clear();
+                    //VALE
+                    this->_dim_out = StateFunction::dim_out();
+                    this->_constr_dim_out = StateFunction::constr_dim_out();
                 }
 
                 if (this->_total_iterations == 0)
@@ -287,9 +320,12 @@ namespace limbo {
             int _total_iterations;
             stopping_criteria_t _stopping_criteria;
             stat_t _stat;
-
-            std::vector<Eigen::VectorXd> _observations;
             std::vector<Eigen::VectorXd> _samples;
+            // VALE
+            std::vector< std::vector<Eigen::VectorXd> > _observations;
+            int _dim_in;
+            int _dim_out;
+            int _constr_dim_out;
         };
     }
 }

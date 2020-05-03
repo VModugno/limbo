@@ -61,9 +61,10 @@ namespace limbo {
                     return;
 
                 std::cout << bo.total_iterations() << " new point: "
-                          << bo.samples().back().transpose()
-                          << " value: " << afun(bo.observations().back())
-                          << " best:" << afun(bo.best_observation(afun)) << std::endl;
+                          << bo.samples().back().transpose();
+						  for(uint i = 0; i <bo.observations().size();i++)
+							  std:: cout << " value: " << afun(bo.observations()[i].back()) << " ";
+                          std::cout << " best:" << afun(bo.best_observation(afun)) << std::endl;
             }
         };
     }
