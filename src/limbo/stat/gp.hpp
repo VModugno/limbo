@@ -76,6 +76,8 @@ namespace limbo {
                 const BO& bo, const AggregatorFunction& afun,
                 const Eigen::VectorXd& current) const
             {
+            	//DEBUG
+            	//std::cout<<"recursive function"<<std::endl;
                 for (double x = 0; x <= 1.0f; x += 1.0f / (double)Params::stat_gp::bins()) {
                     Eigen::VectorXd point = current;
                     point[dim_in] = x;
@@ -83,6 +85,7 @@ namespace limbo {
                         auto q = bo.model().query(point);
                         // VALE
                         double acqui = opt::fun(typename BO::acquisition_function_t(bo.model(),bo.models_constr(),bo.current_iteration())(point, afun, false));
+                        //double acqui = opt::fun(typename BO::acquisition_function_t(bo.model(),bo.current_iteration())(point, afun, false));
                         ofs << point.transpose() << " "
                             << std::get<0>(q).transpose() << " "
                             << std::get<1>(q) << " "

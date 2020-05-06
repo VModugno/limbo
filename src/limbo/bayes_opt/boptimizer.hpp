@@ -69,8 +69,6 @@ namespace limbo {
     namespace defaults {
         struct bayes_opt_boptimizer {
             BO_PARAM(int, hp_period, -1);
-           //VALE
-            BO_PARAM(bool, constrained, false);
         };
     }
 
@@ -140,20 +138,36 @@ namespace limbo {
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void optimize(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true)
             {
+                // VALE we need to initialize the empty vector of gp model just once at the beggining
+				if(_models_constr.size()==0 && Params::bayes_opt_bobase::constrained()){
+					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
+						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
+				}
+            	// get a few data samples for bootstrapping
                 this->_init(sfun, afun, reset);
 
                 // VALE initialization
                 if (!this->_observations.empty()){
+
+                	//DEBUG (visualize _observations)
+                	/*for(uint i = 0;i<this->_observations.size();i++){
+                		std::cout<< "obs " << i << std::endl;
+                		for(uint j = 0;j<this->_observations[i].size();j++)
+                			std::cout<< this->_observations[i][j] <<", ";
+						std::cout<< std::endl;
+                	}*/
+
                 	for(uint i = 0;i<this->_observations.size();i++){
                 		if(i==0)
                 			_model.compute(this->_samples, this->_observations[i]);
-                		else
+                		else if(Params::bayes_opt_bobase::constrained()){
+                			//DEBUG
+                			std::cout<<"_models_constr.size()="<<_models_constr.size()<<std::endl;
                 			_models_constr[i-1].compute(this->_samples, this->_observations[i]);
+                		}
                 	}
                 }else{
                     _model = model_t(StateFunction::dim_in(), StateFunction::dim_out());
-                	for(uint i;i<StateFunction::constr_dim_out();i++)
-                		_models_constr[i] = model_t(StateFunction::dim_in(),1);
                 }
 
 
@@ -162,6 +176,7 @@ namespace limbo {
                 while (!this->_stop(*this, afun)) {
                 	// VALE
                     acquisition_function_t acqui(_model,_models_constr, this->_current_iteration);
+
                 	//acquisition_function_t acqui(_model, this->_current_iteration);
 
                     auto acqui_optimization =
@@ -176,7 +191,7 @@ namespace limbo {
                     for(uint i = 0;i<this->_observations.size();i++){
                     	if(i == 0)
                     		_model.add_sample(this->_samples.back(), this->_observations[i].back());
-                    	else
+                    	else if(Params::bayes_opt_bobase::constrained())
                     		_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
                     }
 
@@ -186,7 +201,7 @@ namespace limbo {
                     	for(uint i = 0;i<this->_observations.size();i++){
 							if(i == 0)
 								_model.optimize_hyperparams();
-							else
+							else if(Params::bayes_opt_bobase::constrained())
 								_models_constr[i-1].optimize_hyperparams();
                     	}
                     }
@@ -200,7 +215,7 @@ namespace limbo {
             template <typename AggregatorFunction = FirstElem>
             const Eigen::VectorXd& best_observation(const AggregatorFunction& afun = AggregatorFunction()) const
             {
-                auto rewards = std::vector<double>(this->_observations.size());
+                auto rewards = std::vector<double>(this->_observations[0].size());
                 std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
                 auto max_e = std::max_element(rewards.begin(), rewards.end());
                 return this->_observations[0][std::distance(rewards.begin(), max_e)];
@@ -218,7 +233,12 @@ namespace limbo {
 
             const model_t& model() const { return _model; }
             // VALE
-            std::vector<model_t> models_constr() const {return _models_constr;}
+            const std::vector<model_t>& models_constr() const {return _models_constr;}
+            /*~BOptimizer(){
+            	std::cout << "-2 "<< std::endl;
+            	//_models_constr.clear();
+            	std::cout << "-1 "<< std::endl;
+            };*/
 
         protected:
             model_t _model;

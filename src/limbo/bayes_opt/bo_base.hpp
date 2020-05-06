@@ -82,6 +82,8 @@ namespace limbo {
         struct bayes_opt_bobase {
             BO_PARAM(bool, stats_enabled, true);
             BO_PARAM(bool, bounded, true);
+            //VALE
+            BO_PARAM(bool, constrained, false);
         };
     }
     template <typename BO, typename AggregatorFunction>
@@ -209,7 +211,7 @@ namespace limbo {
             /// copy is disabled (dangerous and useless)
             BoBase& operator=(const BoBase& other) = delete;
 
-            /// return true if the statitics are enabled (they can be disabled to avoid dumping data, e.g. for unit tests)
+            /// return true if the statistics are enabled (they can be disabled to avoid dumping data, e.g. for unit tests)
             bool stats_enabled() const { return Params::bayes_opt_bobase::stats_enabled(); }
 
             /// return the name of the directory in which results (statistics) are written
@@ -241,12 +243,12 @@ namespace limbo {
                 	while(i<_dim_out + _constr_dim_out){
                 		std::vector<Eigen::VectorXd> cur_vec;
                 		if(i == 0){ // adding fitness value
-                			Eigen::VectorXd cur_y = Eigen::VectorXd(v.head(_dim_out));
-                			cur_vec.push_back(cur_y);
+                			//Eigen::VectorXd cur_y = Eigen::VectorXd(v.head(_dim_out));
+                			cur_vec.push_back(v.head(_dim_out));
                 			i = i + _dim_out;
                 		}else{ // adding constraints value one by one
-                			Eigen::VectorXd cur_y = Eigen::VectorXd(tools::make_vector(v(i)));
-                			cur_vec.push_back(cur_y);
+                			//Eigen::VectorXd cur_y = Eigen::VectorXd(tools::make_vector(v(i)));
+                			cur_vec.push_back(tools::make_vector(v(i)));
                 			i = i + 1;
                 		}
                 		_observations.push_back(cur_vec);
@@ -309,11 +311,12 @@ namespace limbo {
             void _make_res_dir()
             {
                 if (!Params::bayes_opt_bobase::stats_enabled())
-                    return;
-                _res_dir = tools::hostname() + "_" + tools::date() + "_" + tools::getpid();
-                boost::filesystem::path my_path(_res_dir);
-                boost::filesystem::create_directory(my_path);
+					return;
+				_res_dir = tools::hostname() + "_" + tools::date() + "_" + tools::getpid();
+				boost::filesystem::path my_path(_res_dir);
+				boost::filesystem::create_directory(my_path);
             }
+
 
             std::string _res_dir;
             int _current_iteration;

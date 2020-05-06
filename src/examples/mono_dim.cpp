@@ -44,6 +44,7 @@
 //| knowledge of the CeCILL-C license and that you accept its terms.
 //|
 #include <limbo/acqui/eci.hpp>
+//#include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/bayes_opt/boptimizer.hpp>
 #include <limbo/kernel/matern_five_halves.hpp>
 #include <limbo/mean/data.hpp>
@@ -53,15 +54,22 @@
 
 using namespace limbo;
 
+// where are the paramaters bounds?     (bounded between 0 and 1)
+// where the gp model is constructed?   (it is built by using the default constructor)
+
+
 BO_PARAMS(std::cout,
           struct Params {
 
 #ifdef USE_NLOPT
               struct opt_nloptnograd : public defaults::opt_nloptnograd {
-            	  BO_PARAM(double, xi, 0.1);
+
               };
               struct acqui_eci : public defaults::acqui_eci {
+            	  BO_PARAM(double, xi, 0.1);
               };
+              //struct acqui_gpucb : public defaults::acqui_gpucb {
+              //};
 #elif defined(USE_LIBCMAES)
               struct opt_cmaes : public defaults::opt_cmaes {
               };
@@ -69,7 +77,9 @@ BO_PARAMS(std::cout,
               struct opt_gridsearch : public defaults::opt_gridsearch {
               };
 #endif
-
+              //struct acqui_ucb {
+			  //	  BO_PARAM(double, alpha, 0.1);
+			  //};
               struct kernel : public defaults::kernel {
                   BO_PARAM(double, noise, 0.001);
               };
@@ -82,10 +92,11 @@ BO_PARAMS(std::cout,
               };
               struct bayes_opt_bobase : public defaults::bayes_opt_bobase {
                   BO_PARAM(bool, stats_enabled, true);
+                  BO_PARAM(bool, constrained, true);
               };
 
               struct bayes_opt_boptimizer : public defaults::bayes_opt_boptimizer {
-            	  BO_PARAM(bool, constrained, true);
+
               };
 
               struct init_randomsampling {
@@ -106,6 +117,8 @@ BO_PARAMS(std::cout,
               };
           };)
 
+
+
 struct fit_eval {
     BO_PARAM(size_t, dim_in, 2);
     BO_PARAM(size_t, dim_out, 1);
@@ -114,16 +127,15 @@ struct fit_eval {
     Eigen::VectorXd operator()(const Eigen::VectorXd& x) const
     {
     	Eigen::VectorXd res(this->dim_out()+this->constr_dim_out());
-
-
+    	// TODO insert bound manager to denormalize data
+    	//std::cout << "input = "<< x << std::endl;
         // fitness
-    	double res_fit = 0;
-        for (int i = 0; i < x.size(); i++)
-            res_fit += 1 - (x[i] - 0.3) * (x[i] - 0.3) + sin(10 * x[i]) * 0.2;
+    	double res_fit;
+        res_fit =  -( pow((x(0) - 10),3) + pow((x(1) - 20),3) );
 
         // constraints have all the same expression = f(x) < 0;
-        double res_constr1 = -2;
-        double res_constr2 = -3;
+        double res_constr1 = -pow((x(0)-5),2) -pow((x(1)-5),2) + 100;
+        double res_constr2 = +pow((x(0)-6),2) +pow((x(1)-5),2) - 82.81;
         // the BO expect in the first dim_out positions of res the reward functions and after that
         // all the constraints
         res(0) = res_fit; res(1) = res_constr1; res(2) = res_constr2;
@@ -131,6 +143,8 @@ struct fit_eval {
 
     }
 };
+
+
 
 int main()
 {
@@ -148,10 +162,5 @@ int main()
     std::cout << opt.best_observation() << " res  "
               << opt.best_sample().transpose() << std::endl;
 
-    // example with basic HP opt
-    //bayes_opt::BOptimizerHPOpt<Params> opt_hp;
-    //opt_hp.optimize(fit_eval());
-    //std::cout << opt_hp.best_observation() << " res  "
-    //          << opt_hp.best_sample().transpose() << std::endl;
     return 0;
 }

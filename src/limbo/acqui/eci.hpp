@@ -100,10 +100,11 @@ namespace limbo {
         	//    _xi = Params::acqui_eci::xi();
             //    _constrained = Params::bayes_opt_boptimizer::constrained();
             //}
-           ECI(const Model & model,std::vector<Model>  model_constr , int iteration = 0): _model(model), _models_constr(model_constr),_nb_samples(-1)
+           ECI(const Model& model,const std::vector<Model>&  model_constr, int iteration = 0): _model(model), _models_constr(model_constr),_nb_samples(-1)
            {
                 _xi = Params::acqui_eci::xi();
-                _constrained = Params::bayes_opt_boptimizer::constrained();
+                _constrained = Params::bayes_opt_bobase::constrained();
+                _f_max = -10000000;
            }
 
             size_t dim_in() const { return _model.dim_in(); }
@@ -149,7 +150,7 @@ namespace limbo {
 
         protected:
             const Model& _model;
-            std::vector<Model> _models_constr;
+            const std::vector<Model>& _models_constr;
             double _xi;
             bool _constrained;
             int _nb_samples;
