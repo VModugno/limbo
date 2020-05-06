@@ -104,7 +104,7 @@ BO_PARAMS(std::cout,
               };
 
               struct stop_maxiterations {
-                  BO_PARAM(int, iterations, 20);
+                  BO_PARAM(int, iterations, 100);
               };
               struct stat_gp {
                   BO_PARAM(int, bins, 20);
@@ -124,11 +124,13 @@ struct fit_eval {
     BO_PARAM(size_t, dim_out, 1);
     BO_PARAM(size_t, constr_dim_out, 2); // each constraints is considered a mapping R^n -> R
 
-    Eigen::VectorXd operator()(const Eigen::VectorXd& x) const
+    Eigen::VectorXd operator()(const Eigen::VectorXd& z) const
     {
     	Eigen::VectorXd res(this->dim_out()+this->constr_dim_out());
-    	// TODO insert bound manager to denormalize data
-    	//std::cout << "input = "<< x << std::endl;
+    	Eigen::VectorXd x(this->dim_in());
+    	// bound manager to denormalize data      z = (x-min)/ (max-min)     x = z*(max-min) + min
+    	// 13<x1<100; 0<x2<100
+    	x(0) = z(0)*(100-13) + 13; x(1) = z(1)*(100);
         // fitness
     	double res_fit;
         res_fit =  -( pow((x(0) - 10),3) + pow((x(1) - 20),3) );
@@ -159,8 +161,10 @@ int main()
 
     bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     opt.optimize(fit_eval());
+    Eigen::VectorXd x_best = opt.best_sample();
+    x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
     std::cout << opt.best_observation() << " res  "
-              << opt.best_sample().transpose() << std::endl;
+              << x_best.transpose() << std::endl;
 
     return 0;
 }

@@ -141,7 +141,7 @@ namespace limbo {
                 if(_constrained){
 					for(uint i=0;i<_models_constr.size();i++){
 						std::tie(mu, sigma) = _models_constr[i].query(v);
-						ret2 = ret2* my_cdf(afun(mu),sigma,0);
+						ret2 = ret2* my_cdf(afun(mu),sqrt(sigma),0);
 					}
                 }
 
