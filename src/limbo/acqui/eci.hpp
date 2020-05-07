@@ -117,8 +117,9 @@ namespace limbo {
             {
                 assert(!gradient);
                 Eigen::VectorXd mu;
-                double sigma,z,ret1,ret2;
-                std::tie(mu, sigma) = _model.query(v);
+                double sigma_sq,z,ret1,ret2;
+                std::tie(mu, sigma_sq) = _model.query(v);
+                double sigma = std::sqrt(sigma_sq);
 
                 // If \sigma(x) = 0 or we do not have any observation yet we return 0
 				if (sigma < 1e-10 || _model.samples().size() < 1)
@@ -133,17 +134,17 @@ namespace limbo {
 					_f_max = *std::max_element(rewards.begin(), rewards.end());
 				}
 
-				// Calculate Z and \Phi(Z) and \phi(Z)
+				//Calculate Z and \Phi(Z) and \phi(Z)
 			    z = ( afun(mu) - _f_max - _xi)/sigma;
                 ret1 = (afun(mu) - _f_max -_xi) * my_cdf(0,1,z) + sigma*my_pdf(0,1,z);
 
 		        // Calculate Z and \Phi(Z) and \phi(Z)
-				double X = afun(mu) - _f_max - _xi;
+				/*double X = afun(mu) - _f_max - _xi;
 				double Z = X / sigma;
 				double phi = std::exp(-0.5 * std::pow(Z, 2.0)) / std::sqrt(2.0 * M_PI);
 				double Phi = 0.5 * std::erfc(-Z / std::sqrt(2)); //0.5 * (1.0 + std::erf(Z / std::sqrt(2)));
 
-				ret1 = X * Phi + sigma * phi;
+				ret1 = X * Phi + sigma * phi;*/
 
                 ret2 = 1.0;
                 if(_constrained){
