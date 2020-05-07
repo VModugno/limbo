@@ -64,11 +64,11 @@ namespace limbo {
    // m = mean
    // s = variance
    inline double my_cdf(double m, double s,double x){
-	   double cdf = 0.5 * erfc( -(x-m)/(s*sqrt(2)) );
+	   double cdf = 0.5 * std::erfc( -(x-m)/(s*sqrt(2)) );
 	   return cdf;
     }
     inline double my_pdf(double m, double s, double x){
-	   double pdf = exp( -(x-m)/(2*pow(s,2)) )/(s*sqrt(2*M_PI));
+	   double pdf = std::exp( -std::pow(x-m,2)/(2*std::pow(s,2)) )/(s*sqrt(2*M_PI));
 	   return pdf;
     }
     namespace acqui {
@@ -134,14 +134,22 @@ namespace limbo {
 				}
 
 				// Calculate Z and \Phi(Z) and \phi(Z)
-			    z = ( afun(mu) - _f_max - _xi)/std::sqrt(sigma);
-                ret1 = afun(mu) - _f_max -_xi * my_cdf(0,1,z) + std::sqrt(sigma)*my_pdf(0,1,z);
+			    z = ( afun(mu) - _f_max - _xi)/sigma;
+                ret1 = (afun(mu) - _f_max -_xi) * my_cdf(0,1,z) + sigma*my_pdf(0,1,z);
+
+		        // Calculate Z and \Phi(Z) and \phi(Z)
+				double X = afun(mu) - _f_max - _xi;
+				double Z = X / sigma;
+				double phi = std::exp(-0.5 * std::pow(Z, 2.0)) / std::sqrt(2.0 * M_PI);
+				double Phi = 0.5 * std::erfc(-Z / std::sqrt(2)); //0.5 * (1.0 + std::erf(Z / std::sqrt(2)));
+
+				ret1 = X * Phi + sigma * phi;
 
                 ret2 = 1.0;
                 if(_constrained){
 					for(uint i=0;i<_models_constr.size();i++){
 						std::tie(mu, sigma) = _models_constr[i].query(v);
-						ret2 = ret2* my_cdf(afun(mu),sqrt(sigma),0);
+						ret2 = ret2* my_cdf(afun(mu),sigma,0);
 					}
                 }
 

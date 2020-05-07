@@ -44,6 +44,7 @@
 //| knowledge of the CeCILL-C license and that you accept its terms.
 //|
 #include <limbo/acqui/eci.hpp>
+//#include <limbo/acqui/ei.hpp>
 //#include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/bayes_opt/boptimizer.hpp>
 #include <limbo/kernel/matern_five_halves.hpp>
@@ -66,10 +67,13 @@ BO_PARAMS(std::cout,
 
               };
               struct acqui_eci : public defaults::acqui_eci {
-            	  BO_PARAM(double, xi, 0.1);
+              	  BO_PARAM(double, xi, 0.1);
               };
               //struct acqui_gpucb : public defaults::acqui_gpucb {
               //};
+              //struct acqui_ei {
+              //	  BO_PARAM(double, jitter, 0.1);
+			  //};
 #elif defined(USE_LIBCMAES)
               struct opt_cmaes : public defaults::opt_cmaes {
               };
@@ -77,9 +81,9 @@ BO_PARAMS(std::cout,
               struct opt_gridsearch : public defaults::opt_gridsearch {
               };
 #endif
-              //struct acqui_ucb {
-			  //	  BO_PARAM(double, alpha, 0.1);
-			  //};
+             // struct acqui_ucb {
+			 // 	  BO_PARAM(double, alpha, 0.1);
+			 // };
               struct kernel : public defaults::kernel {
                   BO_PARAM(double, noise, 0.001);
               };
@@ -92,7 +96,7 @@ BO_PARAMS(std::cout,
               };
               struct bayes_opt_bobase : public defaults::bayes_opt_bobase {
                   BO_PARAM(bool, stats_enabled, true);
-                  BO_PARAM(bool, constrained, true);
+                  BO_PARAM(bool, constrained, false);
               };
 
               struct bayes_opt_boptimizer : public defaults::bayes_opt_boptimizer {
@@ -104,7 +108,7 @@ BO_PARAMS(std::cout,
               };
 
               struct stop_maxiterations {
-                  BO_PARAM(int, iterations, 100);
+                  BO_PARAM(int, iterations, 50);
               };
               struct stat_gp {
                   BO_PARAM(int, bins, 20);
@@ -119,7 +123,7 @@ BO_PARAMS(std::cout,
 
 
 
-struct fit_eval {
+/*struct fit_eval {
     BO_PARAM(size_t, dim_in, 2);
     BO_PARAM(size_t, dim_out, 1);
     BO_PARAM(size_t, constr_dim_out, 2); // each constraints is considered a mapping R^n -> R
@@ -144,6 +148,21 @@ struct fit_eval {
         return res;
 
     }
+};*/
+
+
+struct fit_eval {
+    BO_PARAM(size_t, dim_in, 2);
+    BO_PARAM(size_t, dim_out, 1);
+    BO_PARAM(size_t, constr_dim_out, 0);
+
+    Eigen::VectorXd operator()(const Eigen::VectorXd& x) const
+    {
+        double res = 0;
+        for (int i = 0; i < x.size(); i++)
+            res += 1 - (x[i] - 0.3) * (x[i] - 0.3) + sin(10 * x[i]) * 0.2;
+        return tools::make_vector(res);
+    }
 };
 
 
@@ -153,7 +172,9 @@ int main()
     using Kernel_t = kernel::MaternFiveHalves<Params>;
     using Mean_t = mean::Data<Params>;
     using GP_t = model::GP<Params, Kernel_t, Mean_t>;
+    //using Acqui_t = acqui::EI<Params, GP_t>;
     using Acqui_t = acqui::ECI<Params, GP_t>;
+    //using Acqui_t = acqui::UCB<Params, GP_t>;
     using stat_t = boost::fusion::vector<stat::ConsoleSummary<Params>,
         stat::Samples<Params>,
         stat::Observations<Params>,
@@ -161,10 +182,12 @@ int main()
 
     bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     opt.optimize(fit_eval());
-    Eigen::VectorXd x_best = opt.best_sample();
-    x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
+    //Eigen::VectorXd x_best = opt.best_sample();
+    //x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
+    //std::cout << opt.best_observation() << " res  "
+    //          << x_best.transpose() << std::endl;
     std::cout << opt.best_observation() << " res  "
-              << x_best.transpose() << std::endl;
+              << opt.best_sample().transpose() << std::endl;
 
     return 0;
 }

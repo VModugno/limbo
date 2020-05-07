@@ -64,12 +64,12 @@ namespace limbo {
 
                 if (bo.total_iterations() == 0) {
                     (*this->_log_file) << "#iteration observation" << std::endl;
-                    for(size_t jj = 0; jj < bo.observations().size() - 1; jj++){
+                    for(size_t jj = 0; jj < bo.observations().size(); jj++){
 						for (size_t ii = 0; ii < bo.observations()[jj].size() - 1; ii++)
 							(*this->_log_file) << "-1 " << bo.observations()[jj][ii].transpose() << std::endl;
                     }
                 }
-                for(size_t j = 0; j < bo.observations().size() - 1; j++)
+                for(size_t j = 0; j < bo.observations().size(); j++)
                 	(*this->_log_file) << bo.total_iterations() << " " << bo.observations()[j].back().transpose() << std::endl;
             }
         };

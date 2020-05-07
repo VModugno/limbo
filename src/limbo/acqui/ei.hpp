@@ -75,7 +75,7 @@ namespace limbo {
         template <typename Params, typename Model>
         class EI {
         public:
-            EI(const Model& model, int iteration = 0) : _model(model), _nb_samples(-1) {}
+            EI(const Model& model,const std::vector<Model>& const_model, int iteration = 0) : _model(model), _nb_samples(-1) {}
 
             size_t dim_in() const { return _model.dim_in(); }
 
