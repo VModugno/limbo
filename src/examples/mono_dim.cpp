@@ -83,7 +83,7 @@ BO_PARAMS(std::cout,
 			  	  BO_PARAM(double, alpha, 0.1);
 			  };
               struct kernel : public defaults::kernel {
-                  BO_PARAM(double, noise, 0);
+                  BO_PARAM(double, noise, 0.00001);
               };
 
               struct kernel_maternfivehalves {
@@ -98,15 +98,15 @@ BO_PARAMS(std::cout,
               };
 
               struct bayes_opt_boptimizer : public defaults::bayes_opt_boptimizer {
-
+            	  BO_PARAM(int, hp_period, 10);
               };
 
               struct init_randomsampling {
-                  BO_PARAM(int, samples, 5);
+                  BO_PARAM(int, samples, 10);
               };
 
               struct stop_maxiterations {
-                  BO_PARAM(int, iterations, 100);
+                  BO_PARAM(int, iterations, 30);
               };
               struct stat_gp {
                   BO_PARAM(int, bins, 20);
@@ -199,10 +199,11 @@ struct fit_eval {
 
 
 int main()
-{
+{   //using kernel_t = kernel::SquaredExpARD<Params>;
     using Kernel_t = kernel::MaternFiveHalves<Params>;
-    using Mean_t = mean::Data<Params>;
-    using GP_t = model::GP<Params, Kernel_t, Mean_t>;
+    using Mean_t   = mean::Data<Params>;
+    using gp_opt_t = model::gp::KernelLFOpt<Params>;
+    using GP_t     = model::GP<Params, Kernel_t, Mean_t,gp_opt_t>;
     //using Acqui_t = acqui::EI<Params, GP_t>;
     using Acqui_t = acqui::ECI<Params, GP_t>;
     //using Acqui_t = acqui::UCB<Params, GP_t>;

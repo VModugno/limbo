@@ -195,8 +195,8 @@ namespace limbo {
                     }*/
                     //VALE
                     //this->eval_and_add(sfun, new_sample);
-					if(max_sample != this->_samples.back())
-						this->eval_and_add(sfun, max_sample);
+					//if(max_sample != this->_samples.back())
+					this->eval_and_add(sfun, max_sample);
 
                     this->_update_stats(*this, afun);
                     // VALE update models
