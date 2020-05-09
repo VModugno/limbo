@@ -64,13 +64,17 @@ namespace limbo {
 
                 if (bo.total_iterations() == 0) {
                     (*this->_log_file) << "#iteration observation" << std::endl;
-                    for(size_t jj = 0; jj < bo.observations().size(); jj++){
-						for (size_t ii = 0; ii < bo.observations()[jj].size() - 1; ii++)
-							(*this->_log_file) << "-1 " << bo.observations()[jj][ii].transpose() << std::endl;
+                    for(size_t jj = 0; jj < bo.observations()[0].size() - 1; jj++){
+                    	(*this->_log_file) << "-1 ";
+						for (size_t ii = 0; ii < bo.observations().size(); ii++)
+							(*this->_log_file) << bo.observations()[ii][jj].transpose()<<" ";
+						(*this->_log_file) << std::endl;
                     }
                 }
+                (*this->_log_file) << bo.total_iterations();
                 for(size_t j = 0; j < bo.observations().size(); j++)
-                	(*this->_log_file) << bo.total_iterations() << " " << bo.observations()[j].back().transpose() << std::endl;
+                	(*this->_log_file)	 << " " << bo.observations()[j].back().transpose()<<" ";
+                (*this->_log_file) << std::endl;
             }
         };
     }

@@ -58,7 +58,7 @@ namespace limbo {
     namespace defaults {
         struct acqui_eci {
             /// @ingroup acqui_defaults
-            BO_PARAM(double, xi, 0.1);
+            BO_PARAM(double, xi, 0.9);
         };
     }
    // m = mean
@@ -121,35 +121,31 @@ namespace limbo {
                 std::tie(mu, sigma_sq) = _model.query(v);
                 double sigma = std::sqrt(sigma_sq);
 
+                //std::cout << "model Prediction = " << afun(mu) << std::endl;
                 // If \sigma(x) = 0 or we do not have any observation yet we return 0
 				if (sigma < 1e-10 || _model.samples().size() < 1)
 					return opt::no_grad(0.0);
+
 				if (_nb_samples != _model.nb_samples()) {
 					std::vector<double> rewards;
 					for (auto s : _model.samples()) {
+						//std::cout << "reward = " << afun(_model.mu(s)) << std::endl; ;
 						rewards.push_back(afun(_model.mu(s)));
 					}
 
 					_nb_samples = _model.nb_samples();
 					_f_max = *std::max_element(rewards.begin(), rewards.end());
+					std::cout << "_f_max = "<< _f_max <<std::endl;
 				}
 
-				//Calculate Z and \Phi(Z) and \phi(Z)
 			    z = ( afun(mu) - _f_max - _xi)/sigma;
                 ret1 = (afun(mu) - _f_max -_xi) * my_cdf(0,1,z) + sigma*my_pdf(0,1,z);
-
-		        // Calculate Z and \Phi(Z) and \phi(Z)
-				/*double X = afun(mu) - _f_max - _xi;
-				double Z = X / sigma;
-				double phi = std::exp(-0.5 * std::pow(Z, 2.0)) / std::sqrt(2.0 * M_PI);
-				double Phi = 0.5 * std::erfc(-Z / std::sqrt(2)); //0.5 * (1.0 + std::erf(Z / std::sqrt(2)));
-
-				ret1 = X * Phi + sigma * phi;*/
 
                 ret2 = 1.0;
                 if(_constrained){
 					for(uint i=0;i<_models_constr.size();i++){
-						std::tie(mu, sigma) = _models_constr[i].query(v);
+						std::tie(mu, sigma_sq) = _models_constr[i].query(v);
+						sigma = std::sqrt(sigma_sq);
 						ret2 = ret2* my_cdf(afun(mu),sigma,0);
 					}
                 }

@@ -177,14 +177,26 @@ namespace limbo {
                 	// VALE
                     acquisition_function_t acqui(_model,_models_constr, this->_current_iteration);
 
-                	//acquisition_function_t acqui(_model, this->_current_iteration);
-
-                    auto acqui_optimization =
-                        [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-                    Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-                    Eigen::VectorXd new_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+                    // VALE
+                    /*int index        = 0;
+                    double f_max     = -1000000;
+                    Eigen::VectorXd  max_sample;
+                    while(index < 30){*/
+						auto acqui_optimization =
+							[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
+						Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+						Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+						// VALE updating local new sample
+						/*if(sfun(new_sample)[0] > f_max){
+							max_sample = new_sample;
+							f_max      = sfun(new_sample)[0];
+						}
+						index = index + 1;
+                    }*/
                     //VALE
-                    this->eval_and_add(sfun, new_sample);
+                    //this->eval_and_add(sfun, new_sample);
+					if(max_sample != this->_samples.back())
+						this->eval_and_add(sfun, max_sample);
 
                     this->_update_stats(*this, afun);
                     // VALE update models

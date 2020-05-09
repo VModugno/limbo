@@ -72,7 +72,7 @@ namespace limbo {
         public:
             using result_type = typename D::result_type;
             // VALE JUST FOR TESTING
-            RandomGenerator(result_type a, result_type b, int seed) : _dist(a, b) { this->seed(seed); }
+            RandomGenerator(result_type a, result_type b, int seed = -1) : _dist(a, b) { this->seed(seed); }
 
             result_type rand() { return _dist(_rgen); }
 
