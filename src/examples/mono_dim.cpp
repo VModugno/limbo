@@ -47,6 +47,7 @@
 #include <limbo/acqui/ei.hpp>
 #include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/bayes_opt/boptimizer.hpp>
+#include <limbo/bayes_opt/onestep_boptimizer.hpp>
 #include <limbo/kernel/matern_five_halves.hpp>
 #include <limbo/kernel/squared_exp_ard.hpp>
 #include <limbo/mean/data.hpp>
@@ -214,6 +215,7 @@ int main()
         stat::Observations<Params>>;
         //stat::GP<Params>>;
 
+    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>> opt_one_step = bayes_opt::OneStepBOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>>(fit_eval());
     bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     opt.optimize(fit_eval());
     Eigen::VectorXd x_best = opt.best_sample();

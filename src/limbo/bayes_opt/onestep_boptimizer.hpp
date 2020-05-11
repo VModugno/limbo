@@ -5,6 +5,8 @@
  *      Author: vale
  */
 
+// WARNING: one step optimizer work only with acqui_manager as acquisition method
+
 #ifndef SRC_LIMBO_BAYES_OPT_ONESTEP_BOPTIMIZER_HPP_
 #define SRC_LIMBO_BAYES_OPT_ONESTEP_BOPTIMIZER_HPP_
 
@@ -17,6 +19,7 @@
 #include <Eigen/Core>
 
 #include <limbo/bayes_opt/bo_base.hpp>
+#include <limbo/acqui/acqui_manager.hpp>
 #include <limbo/tools/macros.hpp>
 #include <limbo/tools/random_generator.hpp>
 #ifdef USE_NLOPT
@@ -34,7 +37,6 @@ namespace limbo {
         };
     }
 
-    BOOST_PARAMETER_TEMPLATE_KEYWORD(acquiopt)
 
     namespace bayes_opt {
 
@@ -87,17 +89,20 @@ namespace limbo {
 #warning NO NLOpt, and NO Libcmaes: the acquisition function will be optimized by a grid search algorithm (which is usually bad). Please install at least NLOpt or libcmaes to use limbo!.
                 using acquiopt_t = opt::GridSearch<Params>;
 #endif
+                using acqui_t = acqui::AcquiManager<Params, model::GP<Params> >;
             };
             /// link to the corresponding BoBase (useful for typedefs)
             using base_t = BoBase<Params, A1, A2, A3, A4, A5, A6>;
             using model_t = typename base_t::model_t;
-            using acquisition_function_t = typename base_t::acquisition_function_t;
+
             // extract the types
             using args = typename onestep_boptimizer_signature::bind<A1, A2, A3, A4, A5, A6>::type;
+            using acquisition_function_t = typename boost::parameter::binding<args, tag::acquifun, typename defaults::acqui_t>::type;
             using acqui_optimizer_t = typename boost::parameter::binding<args, tag::acquiopt, typename defaults::acquiopt_t>::type;
 
             // VALE we need to initialize the empty vector of gp model just once at the beggining
-            OneStepBOptimizer(): _constrained(Params::bayes_opt_bobase::constrained()){
+            template <typename StateFunction, typename AggregatorFunction = FirstElem>
+            OneStepBOptimizer(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true): _constrained(Params::bayes_opt_bobase::constrained()){
 				if(_models_constr.size()==0 && _constrained){
 					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
@@ -131,45 +136,13 @@ namespace limbo {
             }
             /// The main function (run the Bayesian optimization algorithm)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void optimize(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true)
+            void optimize(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;
 
-				// VALE
-				acquisition_function_t acqui(_model,_models_constr, this->_current_iteration);
 
-				// VALE
-				/*int index        = 0;
-				double f_max     = -1000000;
-				Eigen::VectorXd  max_sample;
-				while(index < 30){*/
-				auto acqui_optimization =
-					[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
-				// VALE updating local new sample
-				/*if(sfun(new_sample)[0] > f_max){
-					max_sample = new_sample;
-					f_max      = sfun(new_sample)[0];
-				}
-				index = index + 1;
-				}*/
-				//VALE
-				//this->eval_and_add(sfun, new_sample);
-				//if(max_sample != this->_samples.back())
-				this->eval_and_add(sfun, max_sample);
-
-				this->_update_stats(*this, afun);
-				// VALE update models
-				for(uint i = 0;i<this->_observations.size();i++){
-					if(i == 0)
-						_model.add_sample(this->_samples.back(), this->_observations[i].back());
-					else if(_constrained)
-						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
-				}
-
-				// VALE update hyperparameters
+                // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
 					&& (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0){
 					//DEBUG
@@ -182,6 +155,28 @@ namespace limbo {
 					}
 				}
 
+				// VALE
+                std::string strategy;
+				acquisition_function_t acqui(_model,_models_constr, this->_current_iteration,strategy);
+
+				auto acqui_optimization =
+					[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
+				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+
+				// VALE update models
+				this->eval_and_add(sfun, max_sample);
+
+				for(uint i = 0;i<this->_observations.size();i++){
+					if(i == 0)
+						_model.add_sample(this->_samples.back(), this->_observations[i].back());
+					else if(_constrained)
+						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
+				}
+
+				//update stats
+				this->_update_stats(*this, afun);
+
 				// DEBUG
 				std::cout << "model params = " << _model.kernel_function().h_params().transpose() << std::endl;
 				if(_constrained){
@@ -192,6 +187,24 @@ namespace limbo {
 
 				this->_current_iteration++;
 				this->_total_iterations++;
+
+            }
+            template <typename StateFunction, typename AggregatorFunction = FirstElem>
+            void update_data(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
+            	// VALE update models
+            	this->eval_and_add(sfun, sample);
+
+				for(uint i = 0;i<this->_observations.size();i++){
+					if(i == 0)
+						_model.add_sample(this->_samples.back(), this->_observations[i].back());
+					else if(_constrained)
+						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
+				}
+				// VALE update stats
+				this->_update_stats(*this, afun);
+
+				this->_current_iteration++;
+			    this->_total_iterations++;
 
             }
 
@@ -228,6 +241,7 @@ namespace limbo {
             model_t _model;
             std::vector<model_t> _models_constr;
             bool _constrained;
+
         };
 
     }
