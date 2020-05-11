@@ -39,17 +39,27 @@ namespace limbo {
         		_dim_in   = model.dim_in();
         		_dim_out  = model.dim_out();
         		_strategy = strategy;
-
+        		// adding here elements
         		if(_strategy.compare("eci") == 0){
         			_eci = std::make_shared< acqui::ECI<Params, Model> >(model,model_constr,iteration);
         		}
         		else if(_strategy.compare("ucb") == 0){
         			_ucb = std::make_shared< acqui::UCB<Params, Model> >(model,model_constr,iteration);
         		}else{
-        			std::cout<<"specify a correct strategy!"<<std::endl;
+        			std::cerr <<"specify a correct strategy!"<<std::endl;
+        			assert(false);
         		}
 
            }
+           /*~AcquiManager(){
+        	   if(_strategy.compare("eci") == 0){
+					delete _eci;
+				}
+				else if(_strategy.compare("ucb") == 0){
+					delete _ucb;
+				}
+
+           }*/
 
             size_t dim_in() const { return _dim_in; }
 
@@ -59,18 +69,16 @@ namespace limbo {
             template <typename AggregatorFunction>
             opt::eval_t operator()(const Eigen::VectorXd& v, const AggregatorFunction& afun, bool gradient)
             {
+            	// adding here elements
             	if(_strategy.compare("eci") == 0){
 					return (*_eci)(v,afun,gradient);
 				}
 				else if(_strategy.compare("ucb") == 0){
 					return (*_ucb)(v,afun,gradient);
-				}else{
-					std::cout<<"specify a correct strategy!"<<std::endl;
 				}
-
             }
 
-            // specify destructor
+
 
         protected:
             int _dim_in;
