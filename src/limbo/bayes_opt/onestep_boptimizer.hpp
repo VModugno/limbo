@@ -89,21 +89,22 @@ namespace limbo {
 #warning NO NLOpt, and NO Libcmaes: the acquisition function will be optimized by a grid search algorithm (which is usually bad). Please install at least NLOpt or libcmaes to use limbo!.
                 using acquiopt_t = opt::GridSearch<Params>;
 #endif
-                using acqui_t = acqui::AcquiManager<Params, model::GP<Params> >;
+                //using acqui_t = acqui::AcquiManager<Params, model::GP<Params> >;
             };
             /// link to the corresponding BoBase (useful for typedefs)
             using base_t = BoBase<Params, A1, A2, A3, A4, A5, A6>;
             using model_t = typename base_t::model_t;
-
+            using acquisition_function_t = typename base_t::acquisition_function_t;
             // extract the types
             using args = typename onestep_boptimizer_signature::bind<A1, A2, A3, A4, A5, A6>::type;
-            using acquisition_function_t = typename boost::parameter::binding<args, tag::acquifun, typename defaults::acqui_t>::type;
+            //using acquisition_function_t = typename boost::parameter::binding<args, tag::acquifun, typename defaults::acqui_t>::type;
             using acqui_optimizer_t = typename boost::parameter::binding<args, tag::acquiopt, typename defaults::acquiopt_t>::type;
 
-            // VALE we need to initialize the empty vector of gp model just once at the beggining
+            // VALE we need to initialize the empty vector of gp model just once at the beginning
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            OneStepBOptimizer(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true): _constrained(Params::bayes_opt_bobase::constrained()){
-				if(_models_constr.size()==0 && _constrained){
+            void init(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true){
+            	_constrained = Params::bayes_opt_bobase::constrained();
+            	if(_models_constr.size()==0 && _constrained){
 					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
 				}
@@ -157,7 +158,7 @@ namespace limbo {
 
 				// VALE
                 std::string strategy;
-				acquisition_function_t acqui(_model,_models_constr, this->_current_iteration,strategy);
+				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
 
 				auto acqui_optimization =
 					[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };

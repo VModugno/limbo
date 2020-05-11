@@ -34,17 +34,17 @@ namespace limbo {
         public:
 
 
-        	AcquiManager(const Model& model,const std::vector<Model>&  model_constr,std::string strategy,int iteration = 0)
+        	AcquiManager(const Model& model, const std::vector<Model>&  model_constr, std::string strategy, int iteration = 0)
            {
-        		_dim_in  = model.dim_in();
-        		_dim_out = model.dim_out();
+        		_dim_in   = model.dim_in();
+        		_dim_out  = model.dim_out();
         		_strategy = strategy;
 
         		if(_strategy.compare("eci") == 0){
-        			_eci = acqui::ECI<Params, Model>(model,model_constr,iteration);
+        			_eci = std::make_shared< acqui::ECI<Params, Model> >(model,model_constr,iteration);
         		}
         		else if(_strategy.compare("ucb") == 0){
-        			_ucb = acqui::UCB<Params, Model>(model,model_constr,iteration);
+        			_ucb = std::make_shared< acqui::UCB<Params, Model> >(model,model_constr,iteration);
         		}else{
         			std::cout<<"specify a correct strategy!"<<std::endl;
         		}
@@ -60,10 +60,10 @@ namespace limbo {
             opt::eval_t operator()(const Eigen::VectorXd& v, const AggregatorFunction& afun, bool gradient)
             {
             	if(_strategy.compare("eci") == 0){
-					return _eci(v,afun,gradient);
+					return (*_eci)(v,afun,gradient);
 				}
 				else if(_strategy.compare("ucb") == 0){
-					return _ucb(v,afun,gradient);
+					return (*_ucb)(v,afun,gradient);
 				}else{
 					std::cout<<"specify a correct strategy!"<<std::endl;
 				}
@@ -77,8 +77,8 @@ namespace limbo {
             int _dim_out;
             std::string _strategy;
             // list of acquisition strategy classes
-            acqui::UCB<Params, Model> _ucb;
-            acqui::ECI<Params, Model> _eci;
+            std::shared_ptr<acqui::UCB<Params, Model>> _ucb;
+            std::shared_ptr<acqui::ECI<Params, Model>> _eci;
 
 
 

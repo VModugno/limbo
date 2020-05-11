@@ -100,6 +100,7 @@ namespace limbo {
         	//    _xi = Params::acqui_eci::xi();
             //    _constrained = Params::bayes_opt_boptimizer::constrained();
             //}
+           ECI(){};
            ECI(const Model& model,const std::vector<Model>&  model_constr, int iteration = 0): _model(model), _models_constr(model_constr),_nb_samples(-1)
            {
                 _xi = Params::acqui_eci::xi();

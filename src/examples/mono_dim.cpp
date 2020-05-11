@@ -208,16 +208,19 @@ int main()
     using gp_opt_t = model::gp::KernelLFOpt<Params>;
     using GP_t     = model::GP<Params, Kernel_t, Mean_t, gp_opt_t>;
     //using Acqui_t = acqui::EI<Params, GP_t>;
-    using Acqui_t = acqui::ECI<Params, GP_t>;
-    //using Acqui_t = acqui::UCB<Params, GP_t>;
+    //using Acqui_t = acqui::ECI<Params, GP_t>;
+    using Acqui_t = acqui::UCB<Params, GP_t>;
+    using Acqui_t_one_step = acqui::AcquiManager<Params, GP_t>;
     using stat_t = boost::fusion::vector<stat::ConsoleSummary<Params>,
         stat::Samples<Params>,
         stat::Observations<Params>>;
         //stat::GP<Params>>;
 
-    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>> opt_one_step = bayes_opt::OneStepBOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>>(fit_eval());
+    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
     bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
-    opt.optimize(fit_eval());
+    //opt.optimize(fit_eval());
+    opt_one_step.init(fit_eval());
+    opt_one_step.optimize(fit_eval());
     Eigen::VectorXd x_best = opt.best_sample();
     /*x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
     std::cout << opt.best_observation() << " res  "

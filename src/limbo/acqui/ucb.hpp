@@ -73,6 +73,7 @@ namespace limbo {
         template <typename Params, typename Model>
         class UCB {
         public:
+
             UCB(const Model& model,const std::vector<Model>& const_model, int iteration = 0) : _model(model) {}
 
             size_t dim_in() const { return _model.dim_in(); }
