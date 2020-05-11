@@ -48,6 +48,7 @@
 #include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/bayes_opt/boptimizer.hpp>
 #include <limbo/kernel/matern_five_halves.hpp>
+#include <limbo/kernel/squared_exp_ard.hpp>
 #include <limbo/mean/data.hpp>
 #include <limbo/model/gp.hpp>
 #include <limbo/stat.hpp>
@@ -87,7 +88,7 @@ BO_PARAMS(std::cout,
               };
 
               struct kernel_maternfivehalves {
-                  BO_PARAM(double, sigma_sq, 1);
+                  BO_PARAM(double, sigma_sq, 10);
                   BO_PARAM(double, l, 0.2);
               };
               struct kernel_exp : public defaults::kernel_exp {
@@ -199,11 +200,12 @@ struct fit_eval {
 
 
 int main()
-{   //using kernel_t = kernel::SquaredExpARD<Params>;
+{   //using Kernel_t = kernel::SquaredExpARD<Params>;
     using Kernel_t = kernel::MaternFiveHalves<Params>;
+	//using Kernel_t = kernel::SquaredExpARD<Params>;
     using Mean_t   = mean::Data<Params>;
     using gp_opt_t = model::gp::KernelLFOpt<Params>;
-    using GP_t     = model::GP<Params, Kernel_t, Mean_t,gp_opt_t>;
+    using GP_t     = model::GP<Params, Kernel_t, Mean_t, gp_opt_t>;
     //using Acqui_t = acqui::EI<Params, GP_t>;
     using Acqui_t = acqui::ECI<Params, GP_t>;
     //using Acqui_t = acqui::UCB<Params, GP_t>;

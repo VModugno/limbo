@@ -140,7 +140,7 @@ namespace limbo {
 					std::cout << "_f_max = "<< _f_max <<std::endl;
 				}
 
-			    z = ( afun(mu) - _f_max - _xi)/sigma;
+			    z = (afun(mu) - _f_max - _xi)/sigma;
                 ret1 = (afun(mu) - _f_max -_xi) * my_cdf(0,1,z) + sigma*my_pdf(0,1,z);
 
                 ret2 = 1.0;
@@ -148,10 +148,15 @@ namespace limbo {
 					for(uint i=0;i<_models_constr.size();i++){
 						std::tie(mu, sigma_sq) = _models_constr[i].query(v);
 						sigma = std::sqrt(sigma_sq);
+						// DEBUG
+						//if(afun(mu)<0)
+						//std::cout << "constr["<<i<<"]  mean = "<<afun(mu)<< " var_sq = "<<sigma_sq<<" var =" << sigma<< std::endl;
 						ret2 = ret2* my_cdf(afun(mu),sigma,0);
 					}
                 }
-
+                //DEBUG
+                //std::cout <<"input = " << v.transpose() << std::endl;
+                //std::cout << "ret1 = "<< ret1<< " ret2 = "<< ret2 << std::endl;
                 return opt::no_grad(ret2*ret1);
             }
 

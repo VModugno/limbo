@@ -210,6 +210,8 @@ namespace limbo {
                     // VALE update hyperparameters
                     if (Params::bayes_opt_boptimizer::hp_period() > 0
                         && (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0){
+                    	//DEBUG
+                    	std::cout << "updating kernel parameters" << std::endl;
                     	for(uint i = 0;i<this->_observations.size();i++){
 							if(i == 0)
 								_model.optimize_hyperparams();
@@ -217,6 +219,14 @@ namespace limbo {
 								_models_constr[i-1].optimize_hyperparams();
                     	}
                     }
+
+                    // DEBUG
+					std::cout << "model params = " << _model.kernel_function().h_params().transpose() << std::endl;
+					if(Params::bayes_opt_bobase::constrained()){
+						for(uint jj =0 ; jj< _models_constr.size(); jj++ )
+							std::cout << "constr["<<jj<<"] params = "<< _models_constr[jj].kernel_function().h_params().transpose()<<std::endl;
+					}
+
 
                     this->_current_iteration++;
                     this->_total_iterations++;
