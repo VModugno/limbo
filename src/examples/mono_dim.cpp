@@ -100,11 +100,11 @@ BO_PARAMS(std::cout,
               };
 
               struct bayes_opt_boptimizer : public defaults::bayes_opt_boptimizer {
-            	  BO_PARAM(int, hp_period, 10);
+            	  BO_PARAM(int, hp_period, 1);
               };
 
               struct init_randomsampling {
-                  BO_PARAM(int, samples, 10);
+                  BO_PARAM(int, samples, 20);
               };
 
               struct stop_maxiterations {
@@ -215,18 +215,19 @@ int main()
         stat::Samples<Params>,
         stat::Observations<Params>>;
         //stat::GP<Params>>;
+    std::string strategy = "eci";
 
     bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
-    bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
+    //bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     //opt.optimize(fit_eval());
     opt_one_step.init(fit_eval());
-    opt_one_step.optimize(fit_eval());
-    Eigen::VectorXd x_best = opt.best_sample();
+    opt_one_step.optimize(strategy,fit_eval());
+    Eigen::VectorXd x_best = opt_one_step.best_sample();
     /*x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
     std::cout << opt.best_observation() << " res  "
               << x_best.transpose() << std::endl;*/
-    std::cout << opt.best_observation() << " res  "
-              << opt.best_sample().transpose() << std::endl;
+    std::cout << opt_one_step.best_observation() << " res  "
+              << opt_one_step.best_sample().transpose() << std::endl;
 
     return 0;
 }

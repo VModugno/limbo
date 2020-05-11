@@ -83,6 +83,8 @@ namespace limbo {
             template <typename AggregatorFunction>
             opt::eval_t operator()(const Eigen::VectorXd& v, const AggregatorFunction& afun, bool gradient) const
             {
+            	// DEBUG
+            	std::cout << "sono dentro ucb!" << std::endl;
                 assert(!gradient);
                 Eigen::VectorXd mu;
                 double sigma;

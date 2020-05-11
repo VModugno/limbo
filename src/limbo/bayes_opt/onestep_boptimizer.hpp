@@ -137,11 +137,10 @@ namespace limbo {
             }
             /// The main function (run the Bayesian optimization algorithm)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void optimize(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction())
+            void optimize(std::string strategy, const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;
-
 
                 // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
@@ -157,7 +156,6 @@ namespace limbo {
 				}
 
 				// VALE
-                std::string strategy;
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
 
 				auto acqui_optimization =
