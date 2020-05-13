@@ -162,9 +162,14 @@ namespace limbo {
 
 				// VALE
 				if(zoom){
-					// extract samples point in the surrounding of the current best solution;
-
-
+					model_t local_gp;
+					std::vector<model_t> local_constr_gp;
+					if(_constrained){
+						for(uint i = 0;i<StateFunction::constr_dim_out();i++)
+							local_constr_gp.push_back( model_t(StateFunction::dim_in(),1) );
+					}
+					// extract samples point in the surrounding of the current best solution and create gp-s model;
+					local_model(sfun,std::get<0>(d),std::get<1>(d),local_gp,local_constr_gp);
 				}
 				else{
 					acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
@@ -236,6 +241,44 @@ namespace limbo {
                 auto max_e = std::max_element(rewards.begin(), rewards.end());
                 return this->_samples[std::distance(rewards.begin(), max_e)];
             }
+
+            // here i want to do side effect on  the last two inputs
+            template <typename StateFunction>
+            void local_model(const StateFunction& sfun,double dist,const Eigen::VectorXd& mean, model_t& red_model, std::vector<model_t>& red_model_constr){
+
+            	std::vector<Eigen::VectorXd> samples;
+            	std::vector< std::vector<Eigen::VectorXd> > observations;
+
+            	// initialize observations
+            	if(_constrained){
+					for(int i = 0; i < StateFunction::constr_dim_out();i++){
+						std::vector<Eigen::VectorXd> cur;
+						observations.push_back(cur);
+					}
+            	}
+
+            	// find close sample to mean
+            	for(uint i =0;i<this->_samples.size();i++){
+
+            		double diff =  (this->_samples[i] - mean).norm();
+            		if(diff <= dist){
+            			samples.push_back(this->_samples[i]);
+            			for(uint j = 0;j< this->_observations.size();j++){
+            				observations[j].push_back(this->_observations[j][i]);
+            			}
+            		}
+            	}
+
+            	// create reduced gps
+            	for(uint i = 0;i<this->_observations.size();i++){
+					if(i==0)
+						_model.compute(samples, observations[i]);
+					else if(_constrained){
+						_models_constr[i-1].compute(samples, observations[i]);
+					}
+				}
+            }
+
 
             const model_t& model() const { return _model; }
             // VALE
