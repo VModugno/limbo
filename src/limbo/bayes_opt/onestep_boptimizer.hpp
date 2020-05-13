@@ -30,6 +30,9 @@
 #include <limbo/opt/grid_search.hpp>
 #endif
 
+//std::get<0>(zoomdata)=bound,std::get<1>(zoomdata)=cur mean, std::get<2>(zoomdata)=cur covariance
+typedef std::tuple<double,Eigen::VectorXd,Eigen::MatrixXd> zoomdata;
+
 namespace limbo {
     namespace defaults {
         struct bayes_opt_onestep_boptimizer {
@@ -137,10 +140,11 @@ namespace limbo {
             }
             /// The main function (run the Bayesian optimization algorithm)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void optimize(std::string strategy, const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction())
+            void optimize(std::string strategy, const StateFunction& sfun, bool zoom,const zoomdata& d = std::make_tuple(0,Eigen::VectorXd(),Eigen::MatrixXd()),const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;
+                Eigen::VectorXd max_sample;
 
                 // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
@@ -155,13 +159,19 @@ namespace limbo {
 					}
 				}
 
-				// VALE
-				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
 
-				auto acqui_optimization =
-					[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+				// VALE
+				if(zoom){
+					// extract samples point in the surrounding of the current best solution;
+
+
+				}
+				else{
+					acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
+					auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
+					Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+					max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+				}
 
 				// VALE update models
 				this->eval_and_add(sfun, max_sample);

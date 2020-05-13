@@ -221,7 +221,7 @@ int main()
     //bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     //opt.optimize(fit_eval());
     opt_one_step.init(fit_eval());
-    opt_one_step.optimize(strategy,fit_eval());
+    opt_one_step.optimize(strategy,fit_eval(),false);
     Eigen::VectorXd x_best = opt_one_step.best_sample();
     /*x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
     std::cout << opt.best_observation() << " res  "
