@@ -45,7 +45,10 @@ namespace limbo {
     struct ParticleData{
     	Eigen::VectorXd _mean;
     	Eigen::MatrixXd _cov;
+    	Eigen::MatrixXd _rot;
     	double          _sigma;
+    	double          _bound;
+
 
     	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
     		if(lhs._mean == rhs._mean)
@@ -171,8 +174,8 @@ namespace limbo {
             {
 
                 acqui_optimizer_t acqui_optimizer;
-                Eigen::VectorXd ub = std::get<0>(_d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
-                Eigen::VectorXd lb = -std::get<0>(_d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
+                Eigen::VectorXd ub = _d._bound*Eigen::VectorXd::Ones(StateFunction::dim_in());
+                Eigen::VectorXd lb = -_d._bound*Eigen::VectorXd::Ones(StateFunction::dim_in());
 
                 // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
@@ -188,7 +191,7 @@ namespace limbo {
 				}
 
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
-				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,ub,lb),std::get<1>(_d),std::get<2>(_d)), afun, g); };
+				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,ub,lb),_d._mean,_d._rot), afun, g); };
 				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
