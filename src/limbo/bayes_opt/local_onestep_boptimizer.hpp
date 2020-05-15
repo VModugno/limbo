@@ -195,7 +195,7 @@ namespace limbo {
 				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
-				//update models
+				//update data
 				this->eval_and_add(sfun, max_sample);
                 // update models (I should not do that but I should check if the new point is feasible and is better than the current mean but
 				// ignoring this in not going to be a problem because I update the data and the model and after that i create new model)
