@@ -158,8 +158,6 @@ namespace limbo {
 							_models_constr[i-1].optimize_hyperparams();
 					}
 				}
-
-
 				// VALE
 				if(zoom){
 					Eigen::VectorXd ub = std::get<0>(d)*Eigen::VectorXd::Ones(StateFunction::dim_in());

@@ -277,17 +277,26 @@ namespace limbo {
             }
 
         protected:
+            // one between simple_init and init has to be called!
+            template <typename StateFunction>
+            void simple_init(const StateFunction& seval){
+            	this->_current_iteration = 0;
+				//VALE
+				this->_dim_out = StateFunction::dim_out();
+				this->_constr_dim_out = StateFunction::constr_dim_out();
+            }
+            // one between simple_init and init has to be called!
             template <typename StateFunction, typename AggregatorFunction>
             void _init(const StateFunction& seval, const AggregatorFunction& afun, bool reset = true)
             {
                 this->_current_iteration = 0;
+                //VALE
+				this->_dim_out = StateFunction::dim_out();
+				this->_constr_dim_out = StateFunction::constr_dim_out();
                 if (reset) {
                     this->_total_iterations = 0;
                     this->_samples.clear();
                     this->_observations.clear();
-                    //VALE
-                    this->_dim_out = StateFunction::dim_out();
-                    this->_constr_dim_out = StateFunction::constr_dim_out();
                 }
 
                 if (this->_total_iterations == 0)
