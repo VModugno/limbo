@@ -103,6 +103,7 @@ namespace limbo {
             //using acquisition_function_t = typename boost::parameter::binding<args, tag::acquifun, typename defaults::acqui_t>::type;
             using acqui_optimizer_t = typename boost::parameter::binding<args, tag::acquiopt, typename defaults::acquiopt_t>::type;
 
+            // main functions-----------------------------------------------------------------------------------------
             // VALE we need to initialize the empty vector of gp model just once at the beginning
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void init(const StateFunction& sfun, const AggregatorFunction& afun = AggregatorFunction(), bool reset = true){
@@ -117,14 +118,6 @@ namespace limbo {
 				// VALE initialization
 				if (!this->_observations.empty()){
 
-					//DEBUG (visualize _observations)
-					/*for(uint i = 0;i<this->_observations.size();i++){
-						std::cout<< "obs " << i << std::endl;
-						for(uint j = 0;j<this->_observations[i].size();j++)
-							std::cout<< this->_observations[i][j] <<", ";
-						std::cout<< std::endl;
-					}*/
-
 					for(uint i = 0;i<this->_observations.size();i++){
 						if(i==0)
 							_model.compute(this->_samples, this->_observations[i]);
@@ -138,9 +131,29 @@ namespace limbo {
 					_model = model_t(StateFunction::dim_in(), StateFunction::dim_out());
 				}
             }
+            // updating function without calling the optimization
+            template <typename StateFunction, typename AggregatorFunction = FirstElem>
+			void update_bo(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
+				// VALE update models
+				this->eval_and_add(sfun, sample);
+
+				for(uint i = 0;i<this->_observations.size();i++){
+					if(i == 0)
+						_model.add_sample(this->_samples.back(), this->_observations[i].back());
+					else if(_constrained)
+						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
+				}
+				// VALE update stats
+				this->_update_stats(*this, afun);
+
+				this->_current_iteration++;
+				this->_total_iterations++;
+
+			}
+
             /// The main function (run the Bayesian optimization algorithm)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void optimize(std::string strategy, const StateFunction& sfun, bool zoom,const zoomdata& d = std::make_tuple(0,Eigen::VectorXd(),Eigen::MatrixXd()),const AggregatorFunction& afun = AggregatorFunction())
+            Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun, bool zoom,const zoomdata& d = std::make_tuple(0,Eigen::VectorXd(),Eigen::MatrixXd()),const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;
@@ -158,74 +171,20 @@ namespace limbo {
 							_models_constr[i-1].optimize_hyperparams();
 					}
 				}
-				// VALE
-				if(zoom){
-					Eigen::VectorXd ub = std::get<0>(d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
-					Eigen::VectorXd lb = -std::get<0>(d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
-					std::vector<model_t> local_constr_gp;
-					model_t local_gp;
-					if(_constrained){
-						for(uint i = 0;i<StateFunction::constr_dim_out();i++)
-							local_constr_gp.push_back( model_t(StateFunction::dim_in(),1) );
-					}
-					// extract samples point in the surrounding of the current best solution and create gp-s model;
-					local_model(sfun,std::get<0>(d),std::get<1>(d),local_gp,local_constr_gp);
-					acquisition_function_t acqui(local_gp,local_constr_gp, strategy, this->_current_iteration);
-					auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_adjust(x,ub,lb),std::get<1>(d),std::get<2>(d)), afun, g); };
-					Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-					max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+				// optimization
+				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
+				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
+				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+				max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
-				}
-				else{
-					acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
-					auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-					Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-					max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
-				}
+				// update models
+				update_bo(max_sample,sfun);
 
-				// VALE update models
-				this->eval_and_add(sfun, max_sample);
-
-				for(uint i = 0;i<this->_observations.size();i++){
-					if(i == 0)
-						_model.add_sample(this->_samples.back(), this->_observations[i].back());
-					else if(_constrained)
-						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
-				}
-
-				//update stats
-				this->_update_stats(*this, afun);
-
-				// DEBUG
-				std::cout << "model params = " << _model.kernel_function().h_params().transpose() << std::endl;
-				if(_constrained){
-					for(uint jj =0 ; jj< _models_constr.size(); jj++ )
-						std::cout << "constr["<<jj<<"] params = "<< _models_constr[jj].kernel_function().h_params().transpose()<<std::endl;
-				}
-
-
-				this->_current_iteration++;
-				this->_total_iterations++;
-
+				return max_sample;
             }
-            template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void update_data(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
-            	// VALE update models
-            	this->eval_and_add(sfun, sample);
 
-				for(uint i = 0;i<this->_observations.size();i++){
-					if(i == 0)
-						_model.add_sample(this->_samples.back(), this->_observations[i].back());
-					else if(_constrained)
-						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
-				}
-				// VALE update stats
-				this->_update_stats(*this, afun);
+            // auxiliary functions------------------------------------------------------------------------------------
 
-				this->_current_iteration++;
-			    this->_total_iterations++;
-
-            }
 
             /// return the best observation so far (i.e. max(f(x)))
             template <typename AggregatorFunction = FirstElem>

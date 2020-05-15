@@ -182,11 +182,11 @@ namespace limbo {
                     double f_max     = -1000000;
                     Eigen::VectorXd  max_sample;
                     while(index < 30){*/
-						auto acqui_optimization =
-							[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-						Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
-						Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
-						// VALE updating local new sample
+					auto acqui_optimization =
+						[&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
+					Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+					Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+					// VALE updating local new sample
 						/*if(sfun(new_sample)[0] > f_max){
 							max_sample = new_sample;
 							f_max      = sfun(new_sample)[0];

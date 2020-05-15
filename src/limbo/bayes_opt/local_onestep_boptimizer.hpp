@@ -41,18 +41,21 @@ namespace limbo {
             BO_PARAM(int, hp_period, -1);
         };
     }
-
+    // nedd to manage data
     struct ParticleData{
-    	Eigen::VectorXd mean;
-    	Eigen::MatrixXd cov;
-    	double          sigma;
-    	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
+    	Eigen::VectorXd _mean;
+    	Eigen::MatrixXd _cov;
+    	double          _sigma;
 
-    		if(lhs.mean == rhs.mean)
+    	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
+    		if(lhs._mean == rhs._mean)
     			return true;
     		else
     			return false;
     	};
+    	void update(const ParticleData& d){
+    		// do nothing
+    	}
     };
 
 
@@ -118,12 +121,13 @@ namespace limbo {
             //using acquisition_function_t = typename boost::parameter::binding<args, tag::acquifun, typename defaults::acqui_t>::type;
             using acqui_optimizer_t = typename boost::parameter::binding<args, tag::acquiopt, typename defaults::acquiopt_t>::type;
 
-            // VALE we need to initialize the empty vector of gp model just once at the beginning
+            // main functions-----------------------------------------------------------------------------------------
+            //we need to initialize the empty vector of gp model just once at the beginning (call it once)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void init(const StateFunction& sfun, ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
 
             	_constrained = Params::bayes_opt_bobase::constrained();
-            	_d = d;
+            	_d.update(d);
             	if(_models_constr.size()==0 && _constrained){
 					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
@@ -132,28 +136,38 @@ namespace limbo {
             	this->simple_init(sfun);
             }
 
+            // we need to call it at every new sample from (1+1-cmaes)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
 		    void update_bo(Eigen::VectorXd& sample,const StateFunction& sfun,const ParticleData& d,const AggregatorFunction& afun = AggregatorFunction()){
             	if(d == _d){ // we need to create a new local gp model
-            		// we destroy the former model and build new one
+            		//update particle data
+            		_d.update(d);
+            		// we destroy the former models and build new ones
             		_model = model_t(StateFunction::dim_in(),StateFunction::dim_out());
             		if(_constrained){
             			_models_constr.clear();
 						for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 							_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
 					}
+            		// add current sample (the new mean)
+            		this->eval_and_add(sfun, sample);
+            		// check if i can reuse some of the older points
+            		// TODO adding a function to compute the actual point inside particle data best option
+            		double dist = 0;
+            		init_local_model(sfun,dist);
+
 
             	}
             	else{  // we need to add the current point to the one we are working on;
-
+            	    // update particle data
+            		_d.update(d);
+            		update_data(sample,sfun);
             	}
 		    }
 
-
-
-            /// The main function (run the Bayesian optimization algorithm)
+            // The main function (run the Bayesian optimization algorithm) (call it when model is sufficiently good to be used)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void optimize(std::string strategy, const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction())
+            Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;
@@ -180,12 +194,15 @@ namespace limbo {
 
 				//update models
 				this->eval_and_add(sfun, max_sample);
-                // update models
+                // update models (I should not do that but I should check if the new point is feasible and is better than the current mean but
+				// ignoring this in not going to be a problem because I update the data and the model and after that i create new model)
 				update_data(max_sample,sfun);
+
+				return max_sample;
 
             }
 
-            // auxiliary functions
+            // auxiliary functions------------------------------------------------------------------------------------
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void update_data(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
             	// VALE update data
@@ -205,62 +222,59 @@ namespace limbo {
 
             }
 
-            /// return the best observation so far (i.e. max(f(x)))
-            template <typename AggregatorFunction = FirstElem>
-            const Eigen::VectorXd& best_observation(const AggregatorFunction& afun = AggregatorFunction()) const
-            {
-                auto rewards = std::vector<double>(this->_observations[0].size());
-                std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
-                auto max_e = std::max_element(rewards.begin(), rewards.end());
-                return this->_observations[0][std::distance(rewards.begin(), max_e)];
-            }
-
-            /// return the best sample so far (i.e. the argmax(f(x)))
-            template <typename AggregatorFunction = FirstElem>
-            const Eigen::VectorXd& best_sample(const AggregatorFunction& afun = AggregatorFunction()) const
-            {
-                auto rewards = std::vector<double>(this->_observations[0].size());
-                std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
-                auto max_e = std::max_element(rewards.begin(), rewards.end());
-                return this->_samples[std::distance(rewards.begin(), max_e)];
-            }
-
             // here i want to do side effect on  the last two inputs
-            /*template <typename StateFunction>
-            void local_model(const StateFunction& sfun,double dist,const Eigen::VectorXd& mean, model_t& red_model, std::vector<model_t>& red_model_constr){
-
-            	std::vector<Eigen::VectorXd> samples;
-            	std::vector< std::vector<Eigen::VectorXd> > observations;
-
+            template <typename StateFunction>
+            void init_local_model(const StateFunction& sfun,double dist){
+            	std::vector<Eigen::VectorXd>  local_sample;
+            	std::vector< std::vector<Eigen::VectorXd>> local_obs;
             	// initialize observations
             	if(_constrained){
 					for(uint i = 0; i < StateFunction::constr_dim_out();i++){
 						std::vector<Eigen::VectorXd> cur;
-						observations.push_back(cur);
+						local_obs.push_back(cur);
 					}
             	}
 
-            	// find close sample to mean
+            	// find samples close to mean
             	for(uint i =0;i<this->_samples.size();i++){
 
-            		double diff =  (this->_samples[i] - mean).norm();
+            		double diff =  (this->_samples[i] - _d._mean).norm();
             		if(diff <= dist){
-            			samples.push_back(this->_samples[i]);
+            			local_sample.push_back(this->_samples[i]);
             			for(uint j = 0;j< this->_observations.size();j++){
-            				observations[j].push_back(this->_observations[j][i]);
+            				local_obs[j].push_back(this->_observations[j][i]);
             			}
             		}
             	}
-
-            	// create reduced gps
+            	// compute gp models
             	for(uint i = 0;i<this->_observations.size();i++){
 					if(i==0)
-						_model.compute(samples, observations[i]);
-					else if(_constrained){
-						_models_constr[i-1].compute(samples, observations[i]);
+						_model.compute(local_sample, local_obs[i]);
+					else if(Params::bayes_opt_bobase::constrained()){
+						_models_constr[i-1].compute(local_sample, local_obs[i]);
 					}
 				}
-            } */
+
+            }
+            /// return the best observation so far (i.e. max(f(x)))
+			template <typename AggregatorFunction = FirstElem>
+			const Eigen::VectorXd& best_observation(const AggregatorFunction& afun = AggregatorFunction()) const
+			{
+				auto rewards = std::vector<double>(this->_observations[0].size());
+				std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
+				auto max_e = std::max_element(rewards.begin(), rewards.end());
+				return this->_observations[0][std::distance(rewards.begin(), max_e)];
+			}
+
+			/// return the best sample so far (i.e. the argmax(f(x)))
+			template <typename AggregatorFunction = FirstElem>
+			const Eigen::VectorXd& best_sample(const AggregatorFunction& afun = AggregatorFunction()) const
+			{
+				auto rewards = std::vector<double>(this->_observations[0].size());
+				std::transform(this->_observations[0].begin(), this->_observations[0].end(), rewards.begin(), afun);
+				auto max_e = std::max_element(rewards.begin(), rewards.end());
+				return this->_samples[std::distance(rewards.begin(), max_e)];
+			}
 
             // transform the bound from [0,1] to [-l,l]
             Eigen::VectorXd bound_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
@@ -277,6 +291,7 @@ namespace limbo {
             	z = mean + R*x;
             	return z;
             }
+
 
 
             const model_t& model() const { return _model; }
