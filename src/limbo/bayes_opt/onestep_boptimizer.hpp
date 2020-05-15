@@ -162,14 +162,21 @@ namespace limbo {
 
 				// VALE
 				if(zoom){
-					model_t local_gp;
+					Eigen::VectorXd ub = std::get<0>(d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
+					Eigen::VectorXd lb = -std::get<0>(d)*Eigen::VectorXd::Ones(StateFunction::dim_in());
 					std::vector<model_t> local_constr_gp;
+					model_t local_gp;
 					if(_constrained){
 						for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 							local_constr_gp.push_back( model_t(StateFunction::dim_in(),1) );
 					}
 					// extract samples point in the surrounding of the current best solution and create gp-s model;
 					local_model(sfun,std::get<0>(d),std::get<1>(d),local_gp,local_constr_gp);
+					acquisition_function_t acqui(local_gp,local_constr_gp, strategy, this->_current_iteration);
+					auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_adjust(x,ub,lb),std::get<1>(d),std::get<2>(d)), afun, g); };
+					Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+					max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
+
 				}
 				else{
 					acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
@@ -251,7 +258,7 @@ namespace limbo {
 
             	// initialize observations
             	if(_constrained){
-					for(int i = 0; i < StateFunction::constr_dim_out();i++){
+					for(uint i = 0; i < StateFunction::constr_dim_out();i++){
 						std::vector<Eigen::VectorXd> cur;
 						observations.push_back(cur);
 					}
@@ -277,6 +284,22 @@ namespace limbo {
 						_models_constr[i-1].compute(samples, observations[i]);
 					}
 				}
+            }
+
+            // adjust the bound from [0,1] to [-l,l]
+            Eigen::VectorXd bound_adjust(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+            	Eigen::VectorXd z(x.size());
+            	for(uint i = 0;i<x.size();i++){
+            		z[i] = x[i]*(ub[i]-lb[i]) + lb[i];
+            	}
+            	return z;
+            }
+
+            //rotate the point
+            Eigen::VectorXd rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R){
+            	Eigen::VectorXd z(x.size());
+            	z = mean + R*x;
+            	return z;
             }
 
 
