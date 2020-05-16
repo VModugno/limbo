@@ -16,6 +16,7 @@
 
 #include <boost/parameter/aux_/void.hpp>
 
+
 #include <Eigen/Core>
 
 #include <limbo/bayes_opt/bo_base.hpp>

@@ -18,6 +18,7 @@
 #include <iterator>
 
 #include <boost/parameter/aux_/void.hpp>
+#include <boost/math/distributions/chi_squared.hpp>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -40,10 +41,12 @@ namespace limbo {
     namespace defaults {
         struct local_bayes_opt_onestep_boptimizer {
             BO_PARAM(int, hp_period, -1);
+            BO_PARAM(double,sigma_multiplier,1); // this parameters regulate the bound
         };
     }
-    // nedd to manage data
+    // needed to manage data from particle
     struct ParticleData{
+    	double          _k;
     	Eigen::VectorXd _mean;
     	Eigen::MatrixXd _cov;
     	double          _sigma;
@@ -58,11 +61,16 @@ namespace limbo {
     		_cov   = Eigen::MatrixXd::Zero(size,size);
     		_bound = Eigen::VectorXd::Zero(size);
 			_rot   = Eigen::MatrixXd::Zero(size,size);
+			boost::math::chi_squared mydist(size);
+			_k = quantile(mydist, 0.95);
+
 		};
 
     	ParticleData(double sigma,const Eigen::VectorXd& mean,const Eigen::MatrixXd& cov):_sigma(sigma),_mean(mean),_cov(cov){
     		_bound = Eigen::VectorXd::Zero(cov.rows());
     		_rot   = Eigen::MatrixXd::Zero(cov.rows(),cov.cols());
+    		boost::math::chi_squared mydist(cov.rows());
+    		_k = quantile(mydist, 0.95);
     	};
 
     	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
@@ -72,6 +80,7 @@ namespace limbo {
     			return false;
     	};
     	void update(const ParticleData& d){
+    		_k    = d._k;
     		_mean = d._mean;
     		_cov  = d._cov;
     		_sigma = d._sigma;
@@ -79,9 +88,8 @@ namespace limbo {
     	}
     	void compute_bound_and_rot(){
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
-    		double k = 0;
     		_rot   = eig.eigenvectors();
-    		_bound = k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
+    		_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     	}
     };
 
