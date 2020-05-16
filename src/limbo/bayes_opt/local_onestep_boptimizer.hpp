@@ -20,6 +20,7 @@
 #include <boost/parameter/aux_/void.hpp>
 
 #include <Eigen/Core>
+#include <Eigen/Dense>
 
 #include <limbo/bayes_opt/bo_base.hpp>
 #include <limbo/acqui/acqui_manager.hpp>
@@ -45,10 +46,24 @@ namespace limbo {
     struct ParticleData{
     	Eigen::VectorXd _mean;
     	Eigen::MatrixXd _cov;
-    	Eigen::MatrixXd _rot;
     	double          _sigma;
-    	double          _bound;
+    	Eigen::MatrixXd _rot;
+    	Eigen::VectorXd _bound;
 
+    	ParticleData(){};
+
+    	ParticleData(int size){
+    		_sigma = 0;
+    		_mean  = Eigen::VectorXd::Zero(size);
+    		_cov   = Eigen::MatrixXd::Zero(size,size);
+    		_bound = Eigen::VectorXd::Zero(size);
+			_rot   = Eigen::MatrixXd::Zero(size,size);
+		};
+
+    	ParticleData(double sigma,const Eigen::VectorXd& mean,const Eigen::MatrixXd& cov):_sigma(sigma),_mean(mean),_cov(cov){
+    		_bound = Eigen::VectorXd::Zero(cov.rows());
+    		_rot   = Eigen::MatrixXd::Zero(cov.rows(),cov.cols());
+    	};
 
     	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
     		if(lhs._mean == rhs._mean)
@@ -57,7 +72,16 @@ namespace limbo {
     			return false;
     	};
     	void update(const ParticleData& d){
-    		// do nothing
+    		_mean = d._mean;
+    		_cov  = d._cov;
+    		_sigma = d._sigma;
+
+    	}
+    	void compute_bound_and_rot(){
+    		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
+    		double k = 0;
+    		_rot   = eig.eigenvectors();
+    		_bound = k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     	}
     };
 
@@ -135,7 +159,7 @@ namespace limbo {
 					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
 						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
 				}
-            	// initialize dimension inside the bo base class
+            	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
             }
 
@@ -174,8 +198,7 @@ namespace limbo {
             {
 
                 acqui_optimizer_t acqui_optimizer;
-                Eigen::VectorXd ub = _d._bound*Eigen::VectorXd::Ones(StateFunction::dim_in());
-                Eigen::VectorXd lb = -_d._bound*Eigen::VectorXd::Ones(StateFunction::dim_in());
+
 
                 // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
@@ -190,8 +213,11 @@ namespace limbo {
 					}
 				}
 
+				// update rotation matrix and bound for the zooming step (optimization)
+				-d.compute_bound_and_rot();
+				// optimization step
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
-				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,ub,lb),_d._mean,_d._rot), afun, g); };
+				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,_d._bound,-_d._bound),_d._mean,_d._rot), afun, g); };
 				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
