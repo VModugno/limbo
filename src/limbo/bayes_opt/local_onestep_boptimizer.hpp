@@ -177,6 +177,8 @@ namespace limbo {
             	if(d == _d){ // we need to create a new local gp model
             		//update particle data
             		_d.update(d);
+            		// update rotation matrix and bounds
+            		_d.compute_bound_and_rot();
             		// we destroy the former models and build new ones
             		_model = model_t(StateFunction::dim_in(),StateFunction::dim_out());
             		if(_constrained){
@@ -187,11 +189,8 @@ namespace limbo {
             		// add current sample (the new mean)
             		this->eval_and_add(sfun, sample);
             		// check if i can reuse some of the older points
-            		// TODO adding a function to compute the actual point inside particle data best option
-            		double dist = 0;
+            		double dist = _d._bound.maxCoeff();
             		init_local_model(sfun,dist);
-
-
             	}
             	else{  // we need to add the current point to the one we are working on;
             	    // update particle data
@@ -206,7 +205,8 @@ namespace limbo {
             {
 
                 acqui_optimizer_t acqui_optimizer;
-
+                // update data inside in d necessary for optimization
+                _d.compute_bound_and_rot();
 
                 // VALE update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
