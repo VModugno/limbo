@@ -47,9 +47,9 @@ namespace limbo {
     // needed to manage data from particle
     struct ParticleData{
     	double          _k;
+    	double          _sigma;
     	Eigen::VectorXd _mean;
     	Eigen::MatrixXd _cov;
-    	double          _sigma;
     	Eigen::MatrixXd _rot;
     	Eigen::VectorXd _bound;
 
@@ -73,8 +73,8 @@ namespace limbo {
     		_k = quantile(mydist, 0.95);
     	};
 
-    	inline bool operator==(const ParticleData& lhs, const ParticleData& rhs){
-    		if(lhs._mean == rhs._mean)
+    	inline bool operator==(const ParticleData& rhs){
+    		if(this->_mean == rhs._mean)
     			return true;
     		else
     			return false;
@@ -88,7 +88,7 @@ namespace limbo {
     	}
     	void compute_bound_and_rot(){
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
-    		_rot   = eig.eigenvectors();
+    		//_rot   = eig.eigenvectors(); // covenrsion error
     		_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     	}
     };
@@ -158,44 +158,50 @@ namespace limbo {
 
             // main functions-----------------------------------------------------------------------------------------
             //we need to initialize the empty vector of gp model just once at the beginning (call it once)
+            // the init_list should containt point that are contained in the particle covariance
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void init(const StateFunction& sfun, ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
+            void init(const StateFunction& sfun,const ParticleData& d,const std::vector<Eigen::VectorXd>& init_list, const AggregatorFunction& afun = AggregatorFunction()){
 
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
-            	if(_models_constr.size()==0 && _constrained){
-					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
-						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
-				}
             	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
+            	// provide a list of sample (one or more)
+            	for(uint i =0;i<init_list.size();i++){
+					// VALE update data in bo_base
+					this->eval_and_add(sfun, init_list[i]);
+				}
+            	// here i rebuild the model
+            	double dist = _d._bound.maxCoeff();
+                init_local_model(sfun,dist);
+
             }
 
             // we need to call it at every new sample from (1+1-cmaes)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-		    void update_bo(Eigen::VectorXd& sample,const StateFunction& sfun,const ParticleData& d,const AggregatorFunction& afun = AggregatorFunction()){
-            	if(d == _d){ // we need to create a new local gp model
-            		//update particle data
-            		_d.update(d);
-            		// update rotation matrix and bounds
-            		_d.compute_bound_and_rot();
-            		// we destroy the former models and build new ones
-            		_model = model_t(StateFunction::dim_in(),StateFunction::dim_out());
-            		if(_constrained){
-            			_models_constr.clear();
-						for(uint i = 0;i<StateFunction::constr_dim_out();i++)
-							_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
-					}
-            		// add current sample (the new mean)
-            		this->eval_and_add(sfun, sample);
-            		// check if i can reuse some of the older points
-            		double dist = _d._bound.maxCoeff();
-            		init_local_model(sfun,dist);
+		    void update_bo(Eigen::VectorXd& sample,const StateFunction& sfun, const ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
+            	if(_d == d){ // we need to add the current point to the one we are working on (the particle did not  move)
+            		// update particle data
+					_d.update(d);
+					// add sample to local model
+					update_data(sample,sfun);
             	}
-            	else{  // we need to add the current point to the one we are working on;
-            	    // update particle data
-            		_d.update(d);
-            		update_data(sample,sfun);
+            	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
+            		//update particle data
+					_d.update(d);
+					// update rotation matrix and bounds
+					_d.compute_bound_and_rot();
+					// add current sample to bo_base
+					this->eval_and_add(sfun, sample);
+					// check if i can reuse some of the older points
+					double dist = _d._bound.maxCoeff();
+					// here i rebuild the model
+					init_local_model(sfun,dist);
+					// update stats
+					this->_update_stats(*this, afun);
+
+					this->_current_iteration++;
+					this->_total_iterations++;
             	}
 		    }
 
@@ -203,12 +209,9 @@ namespace limbo {
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction())
             {
-
                 acqui_optimizer_t acqui_optimizer;
-                // update data inside in d necessary for optimization
-                _d.compute_bound_and_rot();
 
-                // VALE update hyperparameters
+                // update hyperparameters
 				if (Params::bayes_opt_boptimizer::hp_period() > 0
 					&& (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0){
 					//DEBUG
@@ -222,10 +225,11 @@ namespace limbo {
 				}
 
 				// update rotation matrix and bound for the zooming step (optimization)
-				-d.compute_bound_and_rot();
+				_d.compute_bound_and_rot();
 				// optimization step
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
-				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,_d._bound,-_d._bound),_d._mean,_d._rot), afun, g); };
+				//auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,_d._bound,-_d._bound),_d._mean,_d._rot), afun, g); };
+				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
 				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
@@ -242,9 +246,9 @@ namespace limbo {
             // auxiliary functions------------------------------------------------------------------------------------
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void update_data(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
-            	// VALE update data
+            	// update data in bo_base
             	this->eval_and_add(sfun, sample);
-                // value update model
+                // update model
 				for(uint i = 0;i<this->_observations.size();i++){
 					if(i == 0)
 						_model.add_sample(this->_samples.back(), this->_observations[i].back());
@@ -264,7 +268,16 @@ namespace limbo {
             void init_local_model(const StateFunction& sfun,double dist){
             	std::vector<Eigen::VectorXd>  local_sample;
             	std::vector< std::vector<Eigen::VectorXd>> local_obs;
-            	// initialize observations
+
+            	// we destroy the former models and build new ones (this work even the first time for the initialization)
+				_model = model_t(StateFunction::dim_in(),StateFunction::dim_out());
+				if(_constrained){
+					_models_constr.clear();
+					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
+						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
+				}
+
+            	// initialize local observations
             	if(_constrained){
 					for(uint i = 0; i < StateFunction::constr_dim_out();i++){
 						std::vector<Eigen::VectorXd> cur;
@@ -274,7 +287,6 @@ namespace limbo {
 
             	// find samples close to mean
             	for(uint i =0;i<this->_samples.size();i++){
-
             		double diff =  (this->_samples[i] - _d._mean).norm();
             		if(diff <= dist){
             			local_sample.push_back(this->_samples[i]);
@@ -339,7 +351,7 @@ namespace limbo {
             model_t _model;
             std::vector<model_t> _models_constr;
             bool _constrained;
-            ParticleData _d; //= std::make_tuple(0,Eigen::VectorXd(),Eigen::MatrixXd())
+            ParticleData _d;
 
 
         };

@@ -48,6 +48,7 @@
 #include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/bayes_opt/boptimizer.hpp>
 #include <limbo/bayes_opt/onestep_boptimizer.hpp>
+#include <limbo/bayes_opt/local_onestep_boptimizer.hpp>
 #include <limbo/kernel/matern_five_halves.hpp>
 #include <limbo/kernel/squared_exp_ard.hpp>
 #include <limbo/mean/data.hpp>
@@ -217,11 +218,26 @@ int main()
         //stat::GP<Params>>;
     std::string strategy = "eci";
 
-    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
+
+
+
+
+    // legacy optimizer
     //bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
     //opt.optimize(fit_eval());
+
+    // opt one step
+    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
     opt_one_step.init(fit_eval());
     opt_one_step.optimize(strategy,fit_eval(),false);
+
+
+    // TODO properly initialize the data here
+    ParticleData d = ParticleData();
+    std::vector<Eigen::VectorXd> list_sample;
+    //bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> local_opt_one_step;
+    //local_opt_one_step.init(fit_eval(),d,list_sample);
+    //local_opt_one_step.optimize(strategy,fit_eval(),false);
     Eigen::VectorXd x_best = opt_one_step.best_sample();
     /*x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
     std::cout << opt.best_observation() << " res  "
