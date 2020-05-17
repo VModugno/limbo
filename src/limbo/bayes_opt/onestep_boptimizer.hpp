@@ -31,8 +31,6 @@
 #include <limbo/opt/grid_search.hpp>
 #endif
 
-//std::get<0>(zoomdata)=bound,std::get<1>(zoomdata)=cur mean, std::get<2>(zoomdata)=cur covariance
-typedef std::tuple<double,Eigen::VectorXd,Eigen::MatrixXd> zoomdata;
 
 namespace limbo {
     namespace defaults {
@@ -154,7 +152,7 @@ namespace limbo {
 
             /// The main function (run the Bayesian optimization algorithm)
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun, bool zoom,const zoomdata& d = std::make_tuple(0,Eigen::VectorXd(),Eigen::MatrixXd()),const AggregatorFunction& afun = AggregatorFunction())
+            Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction())
             {
 
                 acqui_optimizer_t acqui_optimizer;

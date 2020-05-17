@@ -218,32 +218,30 @@ int main()
         //stat::GP<Params>>;
     std::string strategy = "eci";
 
-
-
-
-
-    // legacy optimizer
-    //bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
-    //opt.optimize(fit_eval());
+    /* legacy optimizer
+    bayes_opt::BOptimizer<Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t>> opt;
+    opt.optimize(fit_eval());
+    Eigen::VectorXd x_best = opt_one_step.best_sample();
+    std::cout << opt.best_observation() << " res  "
+                  << x_best.transpose() << std::endl;*/
 
     // opt one step
     bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
     opt_one_step.init(fit_eval());
-    opt_one_step.optimize(strategy,fit_eval(),false);
-
+    opt_one_step.optimize(strategy,fit_eval());
+    Eigen::VectorXd x_best1 = opt_one_step.best_sample();
+    std::cout << opt_one_step.best_observation() << " res  "
+                  << opt_one_step.best_sample().transpose() << std::endl;
 
     // TODO properly initialize the data here
     ParticleData d = ParticleData();
     std::vector<Eigen::VectorXd> list_sample;
-    //bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> local_opt_one_step;
-    //local_opt_one_step.init(fit_eval(),d,list_sample);
-    //local_opt_one_step.optimize(strategy,fit_eval(),false);
-    Eigen::VectorXd x_best = opt_one_step.best_sample();
-    /*x_best(0) = x_best(0)*(100-13) + 13; x_best(1) = x_best(1)*(100);
-    std::cout << opt.best_observation() << " res  "
-              << x_best.transpose() << std::endl;*/
-    std::cout << opt_one_step.best_observation() << " res  "
-              << opt_one_step.best_sample().transpose() << std::endl;
+    bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
+    local_opt_one_step.init(fit_eval(),d,list_sample);
+    local_opt_one_step.optimize(strategy,fit_eval());
+    Eigen::VectorXd x_best2 = local_opt_one_step.best_sample();
+    std::cout << local_opt_one_step.best_observation() << " res  "
+                      << local_opt_one_step.best_sample().transpose() << std::endl;
 
     return 0;
 }
