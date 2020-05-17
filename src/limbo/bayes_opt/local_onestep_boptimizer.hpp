@@ -164,6 +164,7 @@ namespace limbo {
 
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
+            	_d.compute_bound_and_rot();
             	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
             	// provide a list of sample (one or more)
@@ -303,7 +304,6 @@ namespace limbo {
 						_models_constr[i-1].compute(local_sample, local_obs[i]);
 					}
 				}
-
             }
             /// return the best observation so far (i.e. max(f(x)))
 			template <typename AggregatorFunction = FirstElem>

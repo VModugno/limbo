@@ -226,16 +226,27 @@ int main()
                   << x_best.transpose() << std::endl;*/
 
     // opt one step
-    bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
+    /*bayes_opt::OneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>,acquifun<Acqui_t_one_step>> opt_one_step;
     opt_one_step.init(fit_eval());
     opt_one_step.optimize(strategy,fit_eval());
     Eigen::VectorXd x_best1 = opt_one_step.best_sample();
     std::cout << opt_one_step.best_observation() << " res  "
-                  << opt_one_step.best_sample().transpose() << std::endl;
+                  << opt_one_step.best_sample().transpose() << std::endl;*/
 
     // TODO properly initialize the data here
-    ParticleData d = ParticleData();
+
+    double sigma=1;
+    Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval::dim_in());
+    Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval::dim_in());
+	Eigen::MatrixXd cov(fit_eval::dim_in(),fit_eval::dim_in());
+	cov.diagonal() << diag;
+	int init_sample = 5;
+    ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
+    for (int i = 0; i < init_sample; i++) {
+    	auto new_sample = tools::random_vector(fit_eval::dim_in(), Params::bayes_opt_bobase::bounded());
+    	list_sample.push_back(new_sample);
+    }
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
     local_opt_one_step.init(fit_eval(),d,list_sample);
     local_opt_one_step.optimize(strategy,fit_eval());
