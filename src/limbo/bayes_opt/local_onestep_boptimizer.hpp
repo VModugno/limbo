@@ -280,7 +280,7 @@ namespace limbo {
 
             	// initialize local observations
             	if(_constrained){
-					for(uint i = 0; i < StateFunction::constr_dim_out();i++){
+					for(uint i = 0; i < StateFunction::constr_dim_out() + StateFunction::dim_out();i++){
 						std::vector<Eigen::VectorXd> cur;
 						local_obs.push_back(cur);
 					}
