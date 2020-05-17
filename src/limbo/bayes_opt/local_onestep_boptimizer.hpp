@@ -88,7 +88,7 @@ namespace limbo {
     	}
     	void compute_bound_and_rot(){
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
-    		//_rot   = eig.eigenvectors(); // covenrsion error
+    		_rot   = eig.eigenvectors().real(); // conversion error
     		_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     	}
     };
