@@ -11,7 +11,7 @@
 #ifndef SRC_LIMBO_BAYES_OPT_LOCAL_ONESTEP_BOPTIMIZER_HPP_
 #define SRC_LIMBO_BAYES_OPT_LOCAL_ONESTEP_BOPTIMIZER_HPP_
 
-// WARNING: local one step optimizer work only with acqui_manager as acquisition method
+// WARNING: local one step optimizer work only with acqui_manager as acquisition method!
 
 #include <algorithm>
 #include <iostream>

@@ -234,7 +234,6 @@ int main()
                   << opt_one_step.best_sample().transpose() << std::endl;*/
 
     // TODO properly initialize the data here
-
     double sigma=1;
     Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval::dim_in());
