@@ -47,6 +47,8 @@
 #define LIMBO_BAYES_OPT_HPP
 
 #include <limbo/bayes_opt/boptimizer.hpp>
+#include <limbo/bayes_opt/onestep_boptimizer.hpp>
+#include <limbo/bayes_opt/local_onestep_boptimizer.hpp>
 
 #ifdef USE_SFERES
 #include <limbo/experimental/bayes_opt/ehvi.hpp>

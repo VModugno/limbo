@@ -53,5 +53,6 @@
 #include <limbo/acqui/eci.hpp>
 #include <limbo/acqui/gp_ucb.hpp>
 #include <limbo/acqui/ucb.hpp>
+#include <limbo/acqui/acqui_manager.hpp>
 
 #endif
