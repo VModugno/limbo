@@ -248,8 +248,13 @@ int main()
     }
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
     local_opt_one_step.init(fit_eval(),d,list_sample);
-    local_opt_one_step.optimize(strategy,fit_eval());
-    Eigen::VectorXd x_best2 = local_opt_one_step.best_sample();
+    // ask
+    Eigen::VectorXd x_best2 = Eigen::VectorXd(local_opt_one_step.optimize(strategy));
+    // eval
+    Eigen::VectorXd sol     = Eigen::VectorXd(local_opt_one_step.eval(x_best2,fit_eval()));
+    // tell
+    local_opt_one_step.update_bo(x_best2,sol,d);
+    // results
     std::cout << local_opt_one_step.best_observation() << " res  "
                       << local_opt_one_step.best_sample().transpose() << std::endl;
 

@@ -12,6 +12,7 @@
 #define SRC_LIMBO_BAYES_OPT_LOCAL_ONESTEP_BOPTIMIZER_HPP_
 
 // WARNING: local one step optimizer work only with acqui_manager as acquisition method!
+// DESIGN CHOICE: the idea is that sample are in (0,1) range inside any function and outside they are always in their original range
 
 #include <algorithm>
 #include <iostream>
@@ -165,6 +166,9 @@ namespace limbo {
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
             	_d.compute_bound_and_rot();
+            	_dim_in         = StateFunction::dim_in();
+            	_dim_out        = StateFunction::dim_out();
+            	_constr_dim_out = StateFunction::constr_dim_out();
             	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
             	// provide a list of sample (one or more)
@@ -174,18 +178,22 @@ namespace limbo {
 				}
             	// here i rebuild the model
             	double dist = _d._bound.maxCoeff();
-                init_local_model(sfun,dist);
+                init_local_model(dist);
 
             }
 
             // we need to call it at every new sample from (1+1-cmaes)
-            template <typename StateFunction, typename AggregatorFunction = FirstElem>
-		    void update_bo(Eigen::VectorXd& sample,const StateFunction& sfun, const ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
+            template <typename AggregatorFunction = FirstElem>
+		    void update_bo(const Eigen::VectorXd& sample,const Eigen::VectorXd& sol, const ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
+
+            	// TODO we need to transform back the sample from its bound to zero one range for each dimension
+
+
             	if(_d == d){ // we need to add the current point to the one we are working on (the particle did not  move)
             		// update particle data
 					_d.update(d);
 					// add sample to local model
-					update_data(sample,sfun);
+					update_data(sample,sol);
             	}
             	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
             		//update particle data
@@ -193,11 +201,11 @@ namespace limbo {
 					// update rotation matrix and bounds
 					_d.compute_bound_and_rot();
 					// add current sample to bo_base
-					this->eval_and_add(sfun, sample);
+					this->add_new_sample(sample,sol);
 					// check if i can reuse some of the older points
 					double dist = _d._bound.maxCoeff();
 					// here i rebuild the model
-					init_local_model(sfun,dist);
+					init_local_model(dist);
 					// update stats
 					this->_update_stats(*this, afun);
 
@@ -207,8 +215,8 @@ namespace limbo {
 		    }
 
             // The main function (run the Bayesian optimization algorithm) (call it when model is sufficiently good to be used)
-            template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            Eigen::VectorXd optimize(std::string strategy, const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction())
+            template <typename AggregatorFunction = FirstElem>
+            Eigen::VectorXd optimize(std::string strategy,const AggregatorFunction& afun = AggregatorFunction())
             {
                 acqui_optimizer_t acqui_optimizer;
 
@@ -231,24 +239,35 @@ namespace limbo {
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
 				//auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(rototrasl(bound_transf(x,_d._bound,-_d._bound),_d._mean,_d._rot), afun, g); };
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
-				Eigen::VectorXd starting_point = tools::random_vector(StateFunction::dim_in(), Params::bayes_opt_bobase::bounded());
+				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
+				//TODO TOREMOVE
 				//update data
-				this->eval_and_add(sfun, max_sample);
+				//this->eval_and_add(sfun, max_sample);
                 // update models (I should not do that but I should check if the new point is feasible and is better than the current mean but
 				// ignoring this in not going to be a problem because I update the data and the model and after that i create new model)
-				update_data(max_sample,sfun);
+				//update_data(max_sample,sfun);
+
+				// TODO bring to the original space the max sample (it is in zero one at this point)
 
 				return max_sample;
 
             }
 
+            // for debug purpose only
+            template <typename StateFunction>
+            Eigen::VectorXd eval(Eigen::VectorXd& sample,const StateFunction& sfun){
+            	Eigen::VectorXd	sol = Eigen::VectorXd(sfun(sample));
+            	return sol;
+            }
+
+
             // auxiliary functions------------------------------------------------------------------------------------
-            template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void update_data(Eigen::VectorXd& sample,const StateFunction& sfun,const AggregatorFunction& afun = AggregatorFunction()){
+            template <typename AggregatorFunction = FirstElem>
+            void update_data(const Eigen::VectorXd& sample,const Eigen::VectorXd& sol,const AggregatorFunction& afun = AggregatorFunction()){
             	// update data in bo_base
-            	this->eval_and_add(sfun, sample);
+            	this->add_new_sample(sample,sol);
                 // update model
 				for(uint i = 0;i<this->_observations.size();i++){
 					if(i == 0)
@@ -265,22 +284,21 @@ namespace limbo {
             }
 
             // here i want to do side effect on  the last two inputs
-            template <typename StateFunction>
-            void init_local_model(const StateFunction& sfun,double dist){
+            void init_local_model(double dist){
             	std::vector<Eigen::VectorXd>  local_sample;
             	std::vector< std::vector<Eigen::VectorXd>> local_obs;
 
             	// we destroy the former models and build new ones (this work even the first time for the initialization)
-				_model = model_t(StateFunction::dim_in(),StateFunction::dim_out());
+				_model = model_t(_dim_in,_dim_out);
 				if(_constrained){
 					_models_constr.clear();
-					for(uint i = 0;i<StateFunction::constr_dim_out();i++)
-						_models_constr.push_back( model_t(StateFunction::dim_in(),1) );
+					for(int i = 0;i<_constr_dim_out;i++)
+						_models_constr.push_back( model_t(_dim_in,1) );
 				}
 
             	// initialize local observations
             	if(_constrained){
-					for(uint i = 0; i < StateFunction::constr_dim_out() + StateFunction::dim_out();i++){
+					for(int i = 0; i < _constr_dim_out + _dim_out;i++){
 						std::vector<Eigen::VectorXd> cur;
 						local_obs.push_back(cur);
 					}
@@ -305,6 +323,7 @@ namespace limbo {
 					}
 				}
             }
+
             /// return the best observation so far (i.e. max(f(x)))
 			template <typename AggregatorFunction = FirstElem>
 			const Eigen::VectorXd& best_observation(const AggregatorFunction& afun = AggregatorFunction()) const
@@ -352,6 +371,9 @@ namespace limbo {
             std::vector<model_t> _models_constr;
             bool _constrained;
             ParticleData _d;
+            int _dim_in;
+			int _dim_out;
+			int _constr_dim_out;
 
 
         };
