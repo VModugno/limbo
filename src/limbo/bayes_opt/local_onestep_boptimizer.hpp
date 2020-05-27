@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <cmath>
 
 #include <boost/parameter/aux_/void.hpp>
 #include <boost/math/distributions/chi_squared.hpp>
@@ -43,6 +44,7 @@ namespace limbo {
         struct local_bayes_opt_onestep_boptimizer {
             BO_PARAM(int, hp_period, -1);
             BO_PARAM(double,sigma_multiplier,1); // this parameters regulate the bound
+            BO_PARAM(double, thresh, 0.1);
         };
     }
     // needed to manage data from particle
@@ -161,7 +163,7 @@ namespace limbo {
             //we need to initialize the empty vector of gp model just once at the beginning (call it once)
             // the init_list should containt point that are contained in the particle covariance
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void init(const StateFunction& sfun,const ParticleData& d,const std::vector<Eigen::VectorXd>& init_list, const AggregatorFunction& afun = AggregatorFunction()){
+            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, const AggregatorFunction& afun = AggregatorFunction()){
 
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
@@ -179,8 +181,27 @@ namespace limbo {
             	// here i rebuild the model
             	double dist = _d._bound.maxCoeff();
                 init_local_model(dist);
-
             }
+            template <typename StateFunction, typename AggregatorFunction = FirstElem>
+            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, std::vector<Eigen::VectorXd>& obs, const AggregatorFunction& afun = AggregatorFunction()){
+
+				_constrained = Params::bayes_opt_bobase::constrained();
+				_d.update(d);
+				_d.compute_bound_and_rot();
+				_dim_in         = StateFunction::dim_in();
+				_dim_out        = StateFunction::dim_out();
+				_constr_dim_out = StateFunction::constr_dim_out();
+				// initialize dimension inside the bo_base class
+				this->simple_init(sfun);
+				// provide a list of sample (one or more)
+				for(uint i =0;i<init_list.size();i++){
+					// VALE update data in bo_base
+					this->add_new_sample(init_list[i],obs[i]);
+				}
+				// here i rebuild the model
+				double dist = _d._bound.maxCoeff();
+				init_local_model(dist);
+			}
 
             // we need to call it at every new sample from (1+1-cmaes)
             template <typename AggregatorFunction = FirstElem>
@@ -221,8 +242,8 @@ namespace limbo {
                 acqui_optimizer_t acqui_optimizer;
 
                 // update hyperparameters
-				if (Params::bayes_opt_boptimizer::hp_period() > 0
-					&& (this->_current_iteration + 1) % Params::bayes_opt_boptimizer::hp_period() == 0){
+				if (Params::local_bayes_opt_onestep_boptimizer::hp_period() > 0
+					&& (this->_current_iteration + 1) % Params::local_bayes_opt_onestep_boptimizer::hp_period() == 0){
 					//DEBUG
 					std::cout << "updating kernel parameters" << std::endl;
 					for(uint i = 0;i<this->_observations.size();i++){
@@ -322,6 +343,19 @@ namespace limbo {
 						_models_constr[i-1].compute(local_sample, local_obs[i]);
 					}
 				}
+            }
+
+            template <typename AggregatorFunction = FirstElem>
+            bool evaluate_local_model(const Eigen::VectorXd& sample,const Eigen::VectorXd& real_mu,const AggregatorFunction& afun = AggregatorFunction()){
+            	Eigen::VectorXd mu;
+				double sigma_sq;
+				std::tie(mu, sigma_sq) = _model.query(sample);
+				double sigma = std::sqrt(sigma_sq);
+				double diff  = abs(afun(mu) - afun(real_mu));
+				if( diff < Params::local_bayes_opt_onestep_boptimizer::thresh )
+					return true;
+				else
+					return false;
             }
 
             /// return the best observation so far (i.e. max(f(x)))
