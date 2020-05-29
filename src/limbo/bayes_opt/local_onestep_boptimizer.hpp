@@ -350,9 +350,10 @@ namespace limbo {
             	Eigen::VectorXd mu;
 				double sigma_sq;
 				std::tie(mu, sigma_sq) = _model.query(sample);
-				double sigma = std::sqrt(sigma_sq);
-				double diff  = abs(afun(mu) - afun(real_mu));
-				if( diff < Params::local_bayes_opt_onestep_boptimizer::thresh )
+				double sigma  = std::sqrt(sigma_sq);
+				double diff   = abs(afun(mu) - afun(real_mu));
+				double thresh = Params::local_bayes_opt_onestep_boptimizer::thresh();
+				if( diff < thresh)
 					return true;
 				else
 					return false;

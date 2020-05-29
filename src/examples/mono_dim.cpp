@@ -104,6 +104,10 @@ BO_PARAMS(std::cout,
             	  BO_PARAM(int, hp_period, 1);
               };
 
+              struct local_bayes_opt_onestep_boptimizer : public defaults::local_bayes_opt_onestep_boptimizer {
+            	  BO_PARAM(int, hp_period, 1);
+			  };
+
               struct init_randomsampling {
                   BO_PARAM(int, samples, 20);
               };
