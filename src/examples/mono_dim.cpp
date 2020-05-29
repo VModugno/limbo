@@ -128,6 +128,27 @@ BO_PARAMS(std::cout,
 
 
 
+struct fit_eval_no_transf {
+    BO_PARAM(size_t, dim_in, 2);
+    BO_PARAM(size_t, dim_out, 1);
+    BO_PARAM(size_t, constr_dim_out, 2); // each constraints is considered a mapping R^n -> R
+
+    Eigen::VectorXd operator()(const Eigen::VectorXd& x) const
+    {
+    	Eigen::VectorXd res(this->dim_out()+this->constr_dim_out());
+        // fitness
+    	double res_fit;
+        res_fit =  -( pow((x(0) - 10),3) + pow((x(1) - 20),3) );
+        // constraints have all the same expression = f(x) < 0;
+        double res_constr1 = -pow((x(0)-5),2) -pow((x(1)-5),2) + 100;
+        double res_constr2 = +pow((x(0)-6),2) +pow((x(1)-5),2) - 82.81;
+        // the BO expect in the first dim_out positions of res the reward functions and after that
+        // all the constraints
+        res(0) = res_fit; res(1) = res_constr1; res(2) = res_constr2;
+        return res;
+    }
+};
+
 struct fit_eval {
     BO_PARAM(size_t, dim_in, 2);
     BO_PARAM(size_t, dim_out, 1);
@@ -239,23 +260,28 @@ int main()
 
     // TODO properly initialize the data here
     double sigma=1;
-    Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval::dim_in());
-    Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval::dim_in());
-	Eigen::MatrixXd cov(fit_eval::dim_in(),fit_eval::dim_in());
+    Eigen::VectorXd UB;
+    Eigen::VectorXd LB;
+    UB << 100,100;
+    LB << 13,0;
+
+    Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval_no_transf::dim_in());
+    Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
+	Eigen::MatrixXd cov(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
 	cov.diagonal() << diag;
 	int init_sample = 5;
     ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
     for (int i = 0; i < init_sample; i++) {
-    	auto new_sample = tools::random_vector(fit_eval::dim_in(), Params::bayes_opt_bobase::bounded());
+    	auto new_sample = tools::random_vector(fit_eval_no_transf::dim_in(), Params::bayes_opt_bobase::bounded());
     	list_sample.push_back(new_sample);
     }
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
-    local_opt_one_step.init(fit_eval(),d,list_sample);
+    local_opt_one_step.init(fit_eval_no_transf(),d,list_sample,UB,LB);
     // ask
     Eigen::VectorXd x_best2 = Eigen::VectorXd(local_opt_one_step.optimize(strategy));
     // eval
-    Eigen::VectorXd sol     = Eigen::VectorXd(local_opt_one_step.eval(x_best2,fit_eval()));
+    Eigen::VectorXd sol     = Eigen::VectorXd(local_opt_one_step.eval(x_best2,fit_eval_no_transf()));
     // tell
     local_opt_one_step.update_bo(x_best2,sol,d);
     // results
