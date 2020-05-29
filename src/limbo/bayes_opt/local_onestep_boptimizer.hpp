@@ -161,9 +161,10 @@ namespace limbo {
 
             // main functions-----------------------------------------------------------------------------------------
             //we need to initialize the empty vector of gp model just once at the beginning (call it once)
-            // the init_list should containt point that are contained in the particle covariance
+            // the init_list should contain point that are contained in the particle covariance
+            // the hyp is that I receive a sample in the original dimension and i transform to the [0,1] bound
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, const AggregatorFunction& afun = AggregatorFunction()){
+            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, const Eigen::VectorXd& UB, const Eigen::VectorXd& LB, const AggregatorFunction& afun = AggregatorFunction()){
 
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
@@ -171,19 +172,23 @@ namespace limbo {
             	_dim_in         = StateFunction::dim_in();
             	_dim_out        = StateFunction::dim_out();
             	_constr_dim_out = StateFunction::constr_dim_out();
+            	_ub             = UB;
+            	_lb             = LB;
             	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
             	// provide a list of sample (one or more)
             	for(uint i =0;i<init_list.size();i++){
 					// VALE update data in bo_base
-					this->eval_and_add(sfun, init_list[i]);
+            		Eigen::VectorXd sample = bound_anti_transf(init_list[i], _ub, _lb);
+					this->eval_and_add(sfun, sample);
 				}
             	// here i rebuild the model
             	double dist = _d._bound.maxCoeff();
                 init_local_model(dist);
             }
+            // the hyp is that I receive a sample in the original dimension and i transform to the [0,1] bound
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
-            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, std::vector<Eigen::VectorXd>& obs, const AggregatorFunction& afun = AggregatorFunction()){
+            void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, std::vector<Eigen::VectorXd>& obs, const Eigen::VectorXd& UB, const Eigen::VectorXd& LB, const AggregatorFunction& afun = AggregatorFunction()){
 
 				_constrained = Params::bayes_opt_bobase::constrained();
 				_d.update(d);
@@ -191,12 +196,15 @@ namespace limbo {
 				_dim_in         = StateFunction::dim_in();
 				_dim_out        = StateFunction::dim_out();
 				_constr_dim_out = StateFunction::constr_dim_out();
+				_ub             = UB;
+				_lb             = LB;
 				// initialize dimension inside the bo_base class
 				this->simple_init(sfun);
 				// provide a list of sample (one or more)
 				for(uint i =0;i<init_list.size();i++){
-					// VALE update data in bo_base
-					this->add_new_sample(init_list[i],obs[i]);
+					// update data in bo_base
+					Eigen::VectorXd sample = bound_anti_transf(init_list[i], _ub, _lb);
+					this->add_new_sample(sample,obs[i]);
 				}
 				// here i rebuild the model
 				double dist = _d._bound.maxCoeff();
@@ -207,14 +215,14 @@ namespace limbo {
             template <typename AggregatorFunction = FirstElem>
 		    void update_bo(const Eigen::VectorXd& sample,const Eigen::VectorXd& sol, const ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
 
-            	// TODO we need to transform back the sample from its bound to zero one range for each dimension
+            	// we need to transform back the sample from its bound to zero one range for each dimension
 
 
             	if(_d == d){ // we need to add the current point to the one we are working on (the particle did not  move)
             		// update particle data
 					_d.update(d);
 					// add sample to local model
-					update_data(sample,sol);
+					update_data(bound_anti_transf(sample,_ub, _lb),sol);
             	}
             	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
             		//update particle data
@@ -222,7 +230,7 @@ namespace limbo {
 					// update rotation matrix and bounds
 					_d.compute_bound_and_rot();
 					// add current sample to bo_base
-					this->add_new_sample(sample,sol);
+					this->add_new_sample(bound_anti_transf(sample,_ub, _lb),sol);
 					// check if i can reuse some of the older points
 					double dist = _d._bound.maxCoeff();
 					// here i rebuild the model
@@ -263,14 +271,9 @@ namespace limbo {
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
-				//TODO TOREMOVE
-				//update data
-				//this->eval_and_add(sfun, max_sample);
-                // update models (I should not do that but I should check if the new point is feasible and is better than the current mean but
-				// ignoring this in not going to be a problem because I update the data and the model and after that i create new model)
-				//update_data(max_sample,sfun);
 
-				// TODO bring to the original space the max sample (it is in zero one at this point)
+				// bring to the original space the max sample (it is in zero one at this point)
+				max_sample = bound_transf(max_sample,_ub, _lb);
 
 				return max_sample;
 
@@ -279,6 +282,8 @@ namespace limbo {
             // for debug purpose only
             template <typename StateFunction>
             Eigen::VectorXd eval(Eigen::VectorXd& sample,const StateFunction& sfun){
+            	// we need to transform back the sample from zero one range to its original bound
+            	sample = bound_transf(sample,_ub, _lb);
             	Eigen::VectorXd	sol = Eigen::VectorXd(sfun(sample));
             	return sol;
             }
@@ -349,7 +354,8 @@ namespace limbo {
             bool evaluate_local_model(const Eigen::VectorXd& sample,const Eigen::VectorXd& real_mu,const AggregatorFunction& afun = AggregatorFunction()){
             	Eigen::VectorXd mu;
 				double sigma_sq;
-				std::tie(mu, sigma_sq) = _model.query(sample);
+				// we need to transform back the sample from its bound to zero one range for each dimension
+				std::tie(mu, sigma_sq) = _model.query(bound_anti_transf(sample,_ub, _lb));
 				double sigma  = std::sqrt(sigma_sq);
 				double diff   = abs(afun(mu) - afun(real_mu));
 				double thresh = Params::local_bayes_opt_onestep_boptimizer::thresh();
@@ -387,6 +393,14 @@ namespace limbo {
             	}
             	return z;
             }
+            // transform the bound from [-l,l] to [0,1] z = (x-min)/ (max-min)
+		    Eigen::VectorXd bound_anti_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+				Eigen::VectorXd z(x.size());
+				for(uint i = 0;i<x.size();i++){
+					z[i] = (x[i]-lb[i])/(ub[i]-lb[i]);
+				}
+				return z;
+		   }
 
             //rotate the point
             Eigen::VectorXd rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R){
@@ -394,8 +408,6 @@ namespace limbo {
             	z = mean + R*x;
             	return z;
             }
-
-
 
             const model_t& model() const { return _model; }
             // VALE
@@ -409,6 +421,9 @@ namespace limbo {
             int _dim_in;
 			int _dim_out;
 			int _constr_dim_out;
+			Eigen::VectorXd _ub;
+			Eigen::VectorXd _lb;
+
 
 
         };
