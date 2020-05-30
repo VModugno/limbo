@@ -260,8 +260,8 @@ int main()
 
     // TODO properly initialize the data here
     double sigma=1;
-    Eigen::VectorXd UB;
-    Eigen::VectorXd LB;
+    Eigen::VectorXd UB(2);
+    Eigen::VectorXd LB(2);
     UB << 100,100;
     LB << 13,0;
 
