@@ -71,8 +71,7 @@ namespace limbo {
         class RandomGenerator {
         public:
             using result_type = typename D::result_type;
-            // VALE JUST FOR TESTING
-            RandomGenerator(result_type a, result_type b, int seed = -1) : _dist(a, b) { this->seed(seed); }
+            RandomGenerator(result_type a, result_type b,  int seed = -1) : _dist(a, b) { this->seed(seed); }
 
             result_type rand() { return _dist(_rgen); }
 
@@ -92,6 +91,29 @@ namespace limbo {
             D _dist;
             std::mt19937 _rgen;
         };
+        // transform the bound from [0,1] to [-l,l]
+		Eigen::VectorXd bound_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+			Eigen::VectorXd z(x.size());
+			for(uint i = 0;i<x.size();i++){
+				z[i] = x[i]*(ub[i]-lb[i]) + lb[i];
+			}
+			return z;
+		}
+		  // transform the bound from [-l,l] to [0,1] z = (x-min)/ (max-min)
+		  Eigen::VectorXd bound_anti_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+			Eigen::VectorXd z(x.size());
+			for(uint i = 0;i<x.size();i++){
+				z[i] = (x[i]-lb[i])/(ub[i]-lb[i]);
+			}
+			return z;
+		}
+
+		//rotate the point
+		Eigen::VectorXd rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R){
+			Eigen::VectorXd z(x.size());
+			z = mean + R*x;
+			return z;
+		}
 
         /// @ingroup tools
         using rdist_double_t = std::uniform_real_distribution<double>;
@@ -154,6 +176,15 @@ namespace limbo {
             return random_vector_unbounded(size);
         }
 
+        /// random vector wrapper for both bounded and unbounded versions
+		inline Eigen::VectorXd random_vector(int size, const Eigen::VectorXd& ub,const Eigen::VectorXd& lb)
+		{
+
+			Eigen::VectorXd z = random_vector_bounded(size);
+			return bound_transf(z,ub,lb);
+
+		}
+
         /// @ingroup tools
         /// generate n random samples with Latin Hypercube Sampling (LHS) in [0, 1]^dim
         inline Eigen::MatrixXd random_lhs(int dim, int n)
@@ -185,6 +216,7 @@ namespace limbo {
 
             return H;
         }
+
     } // namespace tools
 } // namespace limbo
 

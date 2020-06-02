@@ -117,7 +117,7 @@ namespace limbo {
             opt::eval_t operator()(const Eigen::VectorXd& v, const AggregatorFunction& afun, bool gradient)
             {
             	// VALE
-            	std::cout << "sono dentro eci!" << std::endl;
+            	//std::cout << "sono dentro eci!" << std::endl;
                 assert(!gradient);
                 Eigen::VectorXd mu;
                 double sigma_sq,z,ret1,ret2;

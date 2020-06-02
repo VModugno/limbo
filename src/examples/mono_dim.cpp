@@ -267,13 +267,17 @@ int main()
 
     Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval_no_transf::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
-	Eigen::MatrixXd cov(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
-	cov.diagonal() << diag;
+	Eigen::MatrixXd cov = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
+	cov.diagonal() << 100*diag;
+	// DEBUG
+	std::cout << "cov = "  << cov << std::endl;
 	int init_sample = 5;
     ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
     for (int i = 0; i < init_sample; i++) {
-    	auto new_sample = tools::random_vector(fit_eval_no_transf::dim_in(), Params::bayes_opt_bobase::bounded());
+    	auto new_sample = tools::random_vector(fit_eval_no_transf::dim_in(), UB,LB);
+    	// DEBUG
+    	std::cout << new_sample.transpose()<< std::endl;
     	list_sample.push_back(new_sample);
     }
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
