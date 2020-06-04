@@ -289,7 +289,6 @@ namespace limbo {
 				// optimization step
 				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(tools::rototrasl(tools::bound_transf(x,_d._zoom_bound,-_d._zoom_bound),_d._mean,_d._rot), afun, g); };
-				//auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(x, afun, g); };
 				// here i select point in the [0,1] than i transform them in the covariance space and finally i transform them back in the original space
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
 				// DEBUG
@@ -361,6 +360,12 @@ namespace limbo {
 						std::vector<Eigen::VectorXd> cur;
 						local_obs.push_back(cur);
 					}
+            	}else{
+            		for(int i = 0; i < _dim_out;i++){
+						std::vector<Eigen::VectorXd> cur;
+						local_obs.push_back(cur);
+					}
+
             	}
 
             	// find samples close to mean

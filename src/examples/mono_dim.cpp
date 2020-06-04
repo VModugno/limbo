@@ -265,13 +265,13 @@ int main()
     UB << 100,100;
     LB << 13,0;
 
-    Eigen::VectorXd mean = Eigen::VectorXd::Zero(fit_eval_no_transf::dim_in());
+    Eigen::VectorXd mean = 50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
 	Eigen::MatrixXd cov = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
 	cov.diagonal() << 100*diag;
 	// DEBUG
 	std::cout << "cov = "  << cov << std::endl;
-	int init_sample = 5;
+	int init_sample = 20;
     ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
     for (int i = 0; i < init_sample; i++) {
@@ -291,6 +291,10 @@ int main()
     // results
     std::cout << local_opt_one_step.best_observation() << " res  "
                       << local_opt_one_step.best_sample().transpose() << std::endl;
+
+    // DEBUG test optimal point
+    fit_eval_no_transf val_func;
+    std::cout << "func value at the optimal point = " << val_func(local_opt_one_step.best_sample()) << std::endl;
 
     return 0;
 }
