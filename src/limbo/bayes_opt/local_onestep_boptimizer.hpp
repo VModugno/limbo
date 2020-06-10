@@ -98,8 +98,10 @@ namespace limbo {
     		_rot        = eig.eigenvectors().real();
     		_zoom_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     		//DEBUG
+            #ifdef PLOT_BO
     		std::cout << "_rot = " << _rot<<std::endl;
     		std::cout << "_zoom_bound = " << _zoom_bound.transpose()<<std::endl;
+			#endif
     	}
     };
 
@@ -179,8 +181,8 @@ namespace limbo {
             	_dim_in         = StateFunction::dim_in();
             	_dim_out        = StateFunction::dim_out();
             	_constr_dim_out = StateFunction::constr_dim_out();
-            	_ub             = UB;
-            	_lb             = LB;
+            	_ub             = UB; // not used for now
+            	_lb             = LB; // not used for now
             	// initialize dimension inside the bo_base class
             	this->simple_init(sfun);
             	// provide a list of sample (one or more)
@@ -275,7 +277,9 @@ namespace limbo {
 				if (Params::local_bayes_opt_onestep_boptimizer::hp_period() > 0
 					&& (this->_current_iteration + 1) % Params::local_bayes_opt_onestep_boptimizer::hp_period() == 0){
 					//DEBUG
+					#ifdef PLOT_BO
 					std::cout << "updating kernel parameters" << std::endl;
+                    #endif
 					for(uint i = 0;i<this->_observations.size();i++){
 						if(i == 0)
 							_model.optimize_hyperparams();
@@ -291,12 +295,8 @@ namespace limbo {
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(tools::rototrasl(tools::bound_transf(x,_d._zoom_bound,-_d._zoom_bound),_d._mean,_d._rot), afun, g); };
 				// here i select point in the [0,1] than i transform them in the covariance space and finally i transform them back in the original space
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
-				// DEBUG
-				std::cout << "starting_point_o = "<< starting_point <<std::endl;
 				Eigen::VectorXd a = tools::bound_transf(starting_point,_d._zoom_bound,-_d._zoom_bound);
-				std::cout << "starting_point_a = "<< a <<std::endl;
 				Eigen::VectorXd b = tools::rototrasl(a,_d._mean,_d._rot);
-				std::cout << "starting_point_b = "<< b <<std::endl;
 
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
@@ -388,7 +388,7 @@ namespace limbo {
 						}
 					}
             	}else{
-            		std::cout<< "local sample cannot be empty fix it!"<< std::endl;
+            		std::cout<< "local sample cannot be empty and it needs to be fixed!"<< std::endl;
             	}
             }
 

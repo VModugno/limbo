@@ -92,7 +92,7 @@ namespace limbo {
             std::mt19937 _rgen;
         };
         // transform the bound from [0,1] to [-l,l]
-		Eigen::VectorXd bound_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+		inline Eigen::VectorXd bound_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
 			Eigen::VectorXd z(x.size());
 			for(uint i = 0;i<x.size();i++){
 				z[i] = x[i]*(ub[i]-lb[i]) + lb[i];
@@ -100,7 +100,7 @@ namespace limbo {
 			return z;
 		}
 		  // transform the bound from [-l,l] to [0,1] z = (x-min)/ (max-min)
-		  Eigen::VectorXd bound_anti_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
+		inline Eigen::VectorXd bound_anti_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
 			Eigen::VectorXd z(x.size());
 			for(uint i = 0;i<x.size();i++){
 				z[i] = (x[i]-lb[i])/(ub[i]-lb[i]);
@@ -109,7 +109,7 @@ namespace limbo {
 		}
 
 		//rotate the point
-		Eigen::VectorXd rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R){
+		inline Eigen::VectorXd rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R){
 			Eigen::VectorXd z(x.size());
 			z = mean + R*x;
 			return z;

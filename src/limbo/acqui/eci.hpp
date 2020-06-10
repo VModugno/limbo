@@ -133,14 +133,14 @@ namespace limbo {
 					std::vector<double> rewards;
 					for (auto s : _model.samples()) {
 						// DEBUG
-						std::cout << "reward = " << afun(_model.mu(s)) << std::endl; ;
+						//std::cout << "reward = " << afun(_model.mu(s)) << std::endl; ;
 						rewards.push_back(afun(_model.mu(s)));
 					}
 
 					_nb_samples = _model.nb_samples();
 					_f_max = *std::max_element(rewards.begin(), rewards.end());
 					// DEBUG
-					std::cout << "_f_max = "<< _f_max <<std::endl;
+					//std::cout << "_f_max = "<< _f_max <<std::endl;
 				}
 
 			    z = (afun(mu) - _f_max - _xi)/sigma;
