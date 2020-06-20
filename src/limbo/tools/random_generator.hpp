@@ -58,6 +58,9 @@
 #include <random>
 #include <stdlib.h>
 #include <utility>
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
 
 namespace limbo {
     namespace tools {
@@ -114,6 +117,56 @@ namespace limbo {
 			z = mean + R*x;
 			return z;
 		}
+
+		// drawing function
+		inline void plot_point(){ // print some point
+			  std::vector<double> x_dot (1), y_dot(1);
+			  int n = 5000; // 5000 data points
+			  std::vector<double> x(n), y(n), z(n), w(n, 2);
+			  for (int i = 0; i < n; ++i) {
+			    x.at(i) = i;
+			    y.at(i) = sin(2 * M_PI * i / 360.0);
+			    z.at(i) = log(i);
+			  }
+			  x_dot.at(0) = 5;
+			  y_dot.at(0) = 5;
+			  plt::figure(); // declare a new figure (optional if only one is used)
+			  plt::scatter(x_dot, y_dot,20);
+			  x_dot.at(0) = 8;
+			  y_dot.at(0) = 8;
+			  plt::scatter(x_dot, y_dot,3);
+			  //plt::plot(x, y);                        // automatic coloring: tab:blue
+			  //plt::plot(x, w, "r--");                 // red dashed line
+			  plt::plot(x, z, {{"label", "log(x)"}}); // legend label "log(x)"
+
+			  plt::xlim(0,10);    // x-axis interval: [0, 1e6]
+			  plt::title("Standard usage"); // set a title
+			  plt::legend();                // enable the legend
+
+		};
+
+
+
+		inline void plot_point(const Eigen::VectorXd& x, int dot_size){
+			std::vector<double> x_dot (1), y_dot(1);
+			x_dot.at(0) = x[0];
+		    y_dot.at(0) = x[1];
+		    plt::scatter(x_dot, y_dot,dot_size);
+		}
+
+		inline void plot_rotated_box(const Eigen::MatrixXd& R,const Eigen::VectorXd& center, double width,double height){
+
+		}
+
+		inline void lim_img(int xmin, int xmax, int ymin, int ymax){
+			plt::xlim(xmin,xmax);    // x-axis interval: [0, 1e6]
+			plt::ylim(ymin,ymax);
+		}
+
+		inline void show_img(){
+			plt::show();
+		}
+
 
         /// @ingroup tools
         using rdist_double_t = std::uniform_real_distribution<double>;

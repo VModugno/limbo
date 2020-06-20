@@ -62,6 +62,12 @@
                                     <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src}&quot;"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/vale/local_dep/include"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/home/vale/git/matplotlib-cpp"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/include/python2.7"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/home/vale/.local/lib/python2.7/site-packages/numpy/core/include"/>
                                     								
                                 </option>
                                 								
@@ -88,6 +94,8 @@
                                     <listOptionValue builtIn="false" value="boost_system"/>
                                     									
                                     <listOptionValue builtIn="false" value="nlopt"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="python2.7"/>
                                     								
                                 </option>
                                 								
@@ -120,12 +128,6 @@
                         </toolChain>
                         					
                     </folderInfo>
-                    					
-                    <fileInfo id="cdt.managedbuild.config.gnu.cross.exe.debug.709303066.262566122" name="main.cc" rcbsApplicability="disable" resourcePath="src/ehvi/main.cc" toolsToInvoke="cdt.managedbuild.tool.gnu.cross.cpp.compiler.503370690.755156285">
-                        						
-                        <tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.503370690.755156285" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler.503370690"/>
-                        					
-                    </fileInfo>
                     					
                     <sourceEntries>
                         						

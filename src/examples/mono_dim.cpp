@@ -237,9 +237,9 @@ int main()
     //using Acqui_t = acqui::ECI<Params, GP_t>;
     using Acqui_t = acqui::UCB<Params, GP_t>;
     using Acqui_t_one_step = acqui::AcquiManager<Params, GP_t>;
-    using stat_t = boost::fusion::vector<stat::ConsoleSummary<Params>,
-        stat::Samples<Params>,
-        stat::Observations<Params>>;
+    using stat_t = boost::fusion::vector<stat::ConsoleSummary<Params>>;//,
+        //stat::Samples<Params>,
+        //stat::Observations<Params>>;
         //stat::GP<Params>>;
     std::string strategy = "eci";
 

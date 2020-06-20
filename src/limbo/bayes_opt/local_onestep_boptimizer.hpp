@@ -12,7 +12,7 @@
 #define SRC_LIMBO_BAYES_OPT_LOCAL_ONESTEP_BOPTIMIZER_HPP_
 
 // WARNING: local one step optimizer work only with acqui_manager as acquisition method!
-// DESIGN CHOICE: the idea is that sample are in (0,1) range inside any function and outside they are always in their original range
+
 
 #include <algorithm>
 #include <iostream>
@@ -36,6 +36,8 @@
 #else
 #include <limbo/opt/grid_search.hpp>
 #endif
+
+
 
 namespace limbo {
     namespace defaults {
@@ -238,18 +240,16 @@ namespace limbo {
 
 
             	if(_d == d){ // we need to add the current point to the one we are working on (the particle did not  move)
-            		// update particle data
-					_d.update(d);
-					// add sample to local model
-
 					// TOCHECK
 					//update_data(bound_anti_transf(sample,_ub, _lb),sol);
+            		// even if the mean did not change i update the particle data to get the latest covariance matrix
+            	    _d.update(d);
 					update_data(sample,sol);
             	}
             	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
             		//update particle data
 					_d.update(d);
-					// update rotation matrix and bounds
+					// update rotation matrix and bounds (i have to do this here in order to ge the point close to the current meand and build the new local GP)
 					_d.compute_bound_and_rot();
 					// add current sample to bo_base
 					//this->add_new_sample(bound_anti_transf(sample,_ub, _lb),sol);
@@ -295,15 +295,18 @@ namespace limbo {
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(tools::rototrasl(tools::bound_transf(x,_d._zoom_bound,-_d._zoom_bound),_d._mean,_d._rot), afun, g); };
 				// here i select point in the [0,1] than i transform them in the covariance space and finally i transform them back in the original space
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
+				// DEBUG
 				Eigen::VectorXd a = tools::bound_transf(starting_point,_d._zoom_bound,-_d._zoom_bound);
 				Eigen::VectorXd b = tools::rototrasl(a,_d._mean,_d._rot);
 
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
 
+
 				// bring to the original space the max sample (it is in zero one at this point)
-				// TOCHECK
-				//max_sample = bound_transf(max_sample,_ub, _lb);
+				max_sample = tools::bound_transf(max_sample,_d._zoom_bound,-_d._zoom_bound);
+				max_sample = tools::rototrasl(max_sample,_d._mean,_d._rot);
+
 
 				return max_sample;
 
@@ -396,12 +399,17 @@ namespace limbo {
             bool evaluate_local_model(const Eigen::VectorXd& sample,const Eigen::VectorXd& real_mu,const AggregatorFunction& afun = AggregatorFunction()){
             	Eigen::VectorXd mu;
 				double sigma_sq;
+
+				//TESTING update parameters for the model
+				_model.optimize_hyperparams();
 				// we need to transform back the sample from its bound to zero one range for each dimension
 				// TOCHECK
 				//std::tie(mu, sigma_sq) = _model.query(bound_anti_transf(sample,_ub, _lb));
 				std::tie(mu, sigma_sq) = _model.query(sample);
 				double sigma  = std::sqrt(sigma_sq);
 				double diff   = abs(afun(mu) - afun(real_mu));
+				// DEBUG
+			    std::cout<<"surrogate model error = "<<diff<<std::endl;
 				double thresh = Params::local_bayes_opt_onestep_boptimizer::thresh();
 				if( diff < thresh)
 					return true;
