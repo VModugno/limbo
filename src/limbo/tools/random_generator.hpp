@@ -134,24 +134,33 @@ namespace limbo {
 			Eigen::VectorXd nw(2);
 			std::vector<double> x_coord (5), y_coord(5);
 			//south-west
-			sw[0] = center[0]-width/2;
-			sw[1] = center[1]-height/2;
+			sw[0] = -width/2;
+			sw[1] = -height/2;
 			//south-east
-			se[0] = center[0]+width/2;
-			se[1] = center[1]-height/2;
+			se[0] = +width/2;
+			se[1] = -height/2;
 			//north-east
-			ne[0] = center[0]+width/2;
-			ne[1] = center[1]+height/2;
+			ne[0] = +width/2;
+			ne[1] = +height/2;
 			//north-west
-			nw[0] = center[0]-width/2;
-			nw[1] = center[1]+height/2;
+			nw[0] = -width/2;
+			nw[1] = +height/2;
 
+			std::cout << sw << std::endl;
+			std::cout << se << std::endl;
+			std::cout << ne << std::endl;
+			std::cout << nw << std::endl;
 
 			// rotate point in the original frame
-			sw = R*sw;
-			se = R*se;
-			ne = R*ne;
-			nw = R*nw;
+			sw = center + R*sw;
+			se = center + R*se;
+			ne = center + R*ne;
+			nw = center + R*nw;
+
+			std::cout << sw << std::endl;
+			std::cout << se << std::endl;
+			std::cout << ne << std::endl;
+			std::cout << nw << std::endl;
 
 			x_coord.at(0) = sw[0];
 			y_coord.at(0) = sw[1];

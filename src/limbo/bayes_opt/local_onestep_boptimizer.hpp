@@ -97,7 +97,8 @@ namespace limbo {
     	}
     	void compute_bound_and_rot(){
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
-    		_rot        = eig.eigenvectors().real();
+    		_rot        = eig.eigenvectors().real(); // check transposition if it is correct
+    		std::cout << "rotation matrix = "<< _rot << std::endl;
     		_zoom_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     		//DEBUG
             #ifdef PLOT_BO
@@ -310,7 +311,8 @@ namespace limbo {
 				// plot function
 				tools::plot_point(_d._mean, 10);
 				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
-				tools::lim_img(0,100,0,100);
+				tools::plot_point(max_sample, 10);
+				tools::lim_img(-100,200,-100,200);
 				tools::show_img();
 				return max_sample;
 

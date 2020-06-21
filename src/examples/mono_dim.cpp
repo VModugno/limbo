@@ -56,6 +56,8 @@
 #include <limbo/stat.hpp>
 #include <limbo/tools/macros.hpp>
 
+#include <math.h>
+
 using namespace limbo;
 
 // where are the paramaters bounds?     (bounded between 0 and 1)
@@ -259,7 +261,11 @@ int main()
                   << opt_one_step.best_sample().transpose() << std::endl;*/
 
     // TODO properly initialize the data here
-    double sigma=1;
+    double sigma1    = 10;
+    double sigma2    = 1;
+    double sigma     = 2;
+    double theta_deg = 45;
+    double theta = theta_deg*(M_PI/180);
     Eigen::VectorXd UB(2);
     Eigen::VectorXd LB(2);
     UB << 100,100;
@@ -267,10 +273,18 @@ int main()
 
     Eigen::VectorXd mean = 50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
-	Eigen::MatrixXd cov = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
-	cov.diagonal() << 1*diag;
+	Eigen::MatrixXd cov_diag = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
+	Eigen::MatrixXd cov_rot  = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
+	Eigen::MatrixXd cov      = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
+	diag[0] = sigma1;
+	diag[1] = sigma2;
+	cov_diag.diagonal() << diag;
 	// z rotation cos(theta) -sin(theta); sin(theta) cos(theta);
-	//
+	cov_rot(0,0) = cos(theta);
+	cov_rot(0,1) = -sin(theta);
+	cov_rot(1,0) = sin(theta);
+	cov_rot(1,1) = cos(theta);
+	cov = (cov_rot*cov_diag)*cov_rot.transpose();
 	// DEBUG
 	std::cout << "cov = "  << cov << std::endl;
 	int init_sample = 20;
@@ -282,6 +296,8 @@ int main()
     	std::cout << new_sample.transpose()<< std::endl;
     	list_sample.push_back(new_sample);
     }
+    // add mean to be sure i'm adding at least the mean
+    list_sample.push_back(mean);
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;
     local_opt_one_step.init(fit_eval_no_transf(),d,list_sample,UB,LB);
     // ask
@@ -296,7 +312,7 @@ int main()
 
     // DEBUG test optimal point
     fit_eval_no_transf val_func;
-    std::cout << "func value at the optimal point = " << val_func(local_opt_one_step.best_sample()) << std::endl;
+    std::cout << "func value at the optimal point = " << val_func(local_opt_one_step.best_sample().transpose()) << std::endl;
 
     return 0;
 }
