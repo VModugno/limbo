@@ -102,7 +102,8 @@ namespace limbo {
 			}
 			return z;
 		}
-		  // transform the bound from [-l,l] to [0,1] z = (x-min)/ (max-min)
+
+		// transform the bound from [-l,l] to [0,1] z = (x-min)/ (max-min)
 		inline Eigen::VectorXd bound_anti_transf(const Eigen::VectorXd& x, const Eigen::VectorXd& ub, const Eigen::VectorXd& lb){
 			Eigen::VectorXd z(x.size());
 			for(uint i = 0;i<x.size();i++){
@@ -116,6 +117,43 @@ namespace limbo {
 			Eigen::VectorXd z(x.size());
 			z = mean + R*x;
 			return z;
+		}
+
+        // create meshgrid on 2d plane
+        inline std::vector<Eigen::VectorXd> meshgrid_2d(int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
+
+        	std::vector<Eigen::VectorXd> res;
+        	Eigen::VectorXd x_coord = Eigen::VectorXd::LinSpaced(size_x,low_x,high_x);
+        	Eigen::VectorXd y_coord = Eigen::VectorXd::LinSpaced(size_y,low_y,high_y);
+
+        	for(unsigned int i = 0;i<x_coord.size();i++){
+        		for(unsigned int j = 0;j<y_coord.size();i++){
+        			Eigen::VectorXd cur(2);
+        			cur[0] = x_coord[i];
+        		    cur[1] = y_coord[j];
+        		    res.push_back(cur);
+        		}
+        	}
+        	return res;
+        }
+
+        inline std::vector<Eigen::VectorXd> rotated_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
+        	std::vector<Eigen::VectorXd> res;
+        	res = meshgrid_2d(size_x,low_x,high_x,size_y,low_y,high_y);
+        	for(unsigned int i =0; i<res.size();i++){
+        		res[i] = rototrasl(res[i],mean,R);
+        	}
+        	return res;
+        }
+
+        inline std::vector<Eigen::VectorXd> scale_rot_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,const Eigen::VectorXd& ub, const Eigen::VectorXd& lb,int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
+			std::vector<Eigen::VectorXd> res;
+			res = meshgrid_2d(size_x,low_x,high_x,size_y,low_y,high_y);
+			for(unsigned int i =0; i<res.size();i++){
+				res[i] = bound_transf(res[i],ub,lb);
+				res[i] = rototrasl(res[i],mean,R);
+			}
+			return res;
 		}
 
 		// drawing function
@@ -146,21 +184,11 @@ namespace limbo {
 			nw[0] = -width/2;
 			nw[1] = +height/2;
 
-			std::cout << sw << std::endl;
-			std::cout << se << std::endl;
-			std::cout << ne << std::endl;
-			std::cout << nw << std::endl;
-
 			// rotate point in the original frame
 			sw = center + R*sw;
 			se = center + R*se;
 			ne = center + R*ne;
 			nw = center + R*nw;
-
-			std::cout << sw << std::endl;
-			std::cout << se << std::endl;
-			std::cout << ne << std::endl;
-			std::cout << nw << std::endl;
 
 			x_coord.at(0) = sw[0];
 			y_coord.at(0) = sw[1];

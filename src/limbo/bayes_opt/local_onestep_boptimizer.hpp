@@ -308,12 +308,28 @@ namespace limbo {
 				max_sample = tools::bound_transf(max_sample,_d._zoom_bound,-_d._zoom_bound);
 				max_sample = tools::rototrasl(max_sample,_d._mean,_d._rot);
 
+				// DEBUG
+				// save data to file for inspection with matlab
+				std::ofstream file("test.txt");
+				std::vector<Eigen::VectorXd> grid                    = tools::meshgrid_2d(0.1,0,1,0.1,0,1);
+				std::vector<Eigen::VectorXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.1,0,1,0.1,0,1);
+				for(uint i = 0;i<grid.size();i++){
+					Eigen::VectorXd cur(3);
+					//double res = acqui_optimization(grid[i],false);
+					double res = 1;
+					cur[0]     = grid_scaled_and_rotated[i][0];
+				    cur[1]     = grid_scaled_and_rotated[i][1];
+				    cur[2]     = res;
+				    file << cur.transpose() << '\n';
+				}
 				// plot function
 				tools::plot_point(_d._mean, 10);
 				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
 				tools::plot_point(max_sample, 10);
 				tools::lim_img(-100,200,-100,200);
 				tools::show_img();
+				//------------------------------------------------------------------
+
 				return max_sample;
 
             }

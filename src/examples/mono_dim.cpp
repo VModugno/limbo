@@ -263,13 +263,13 @@ int main()
     // TODO properly initialize the data here
     double sigma1    = 10;
     double sigma2    = 1;
-    double sigma     = 2;
+    double sigma     = 1.5;
     double theta_deg = 45;
     double theta = theta_deg*(M_PI/180);
     Eigen::VectorXd UB(2);
     Eigen::VectorXd LB(2);
     UB << 100,100;
-    LB << 13,0;
+    LB << 13 ,0;
 
     Eigen::VectorXd mean = 50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
