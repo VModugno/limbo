@@ -268,7 +268,9 @@ int main()
     Eigen::VectorXd mean = 50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
 	Eigen::MatrixXd cov = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
-	cov.diagonal() << 100*diag;
+	cov.diagonal() << 1*diag;
+	// z rotation cos(theta) -sin(theta); sin(theta) cos(theta);
+	//
 	// DEBUG
 	std::cout << "cov = "  << cov << std::endl;
 	int init_sample = 20;

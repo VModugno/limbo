@@ -307,7 +307,11 @@ namespace limbo {
 				max_sample = tools::bound_transf(max_sample,_d._zoom_bound,-_d._zoom_bound);
 				max_sample = tools::rototrasl(max_sample,_d._mean,_d._rot);
 
-
+				// plot function
+				tools::plot_point(_d._mean, 10);
+				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
+				tools::lim_img(0,100,0,100);
+				tools::show_img();
 				return max_sample;
 
             }

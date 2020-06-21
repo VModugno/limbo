@@ -119,34 +119,6 @@ namespace limbo {
 		}
 
 		// drawing function
-		inline void plot_point(){ // print some point
-			  std::vector<double> x_dot (1), y_dot(1);
-			  int n = 5000; // 5000 data points
-			  std::vector<double> x(n), y(n), z(n), w(n, 2);
-			  for (int i = 0; i < n; ++i) {
-			    x.at(i) = i;
-			    y.at(i) = sin(2 * M_PI * i / 360.0);
-			    z.at(i) = log(i);
-			  }
-			  x_dot.at(0) = 5;
-			  y_dot.at(0) = 5;
-			  plt::figure(); // declare a new figure (optional if only one is used)
-			  plt::scatter(x_dot, y_dot,20);
-			  x_dot.at(0) = 8;
-			  y_dot.at(0) = 8;
-			  plt::scatter(x_dot, y_dot,3);
-			  //plt::plot(x, y);                        // automatic coloring: tab:blue
-			  //plt::plot(x, w, "r--");                 // red dashed line
-			  plt::plot(x, z, {{"label", "log(x)"}}); // legend label "log(x)"
-
-			  plt::xlim(0,10);    // x-axis interval: [0, 1e6]
-			  plt::title("Standard usage"); // set a title
-			  plt::legend();                // enable the legend
-
-		};
-
-
-
 		inline void plot_point(const Eigen::VectorXd& x, int dot_size){
 			std::vector<double> x_dot (1), y_dot(1);
 			x_dot.at(0) = x[0];
@@ -154,8 +126,46 @@ namespace limbo {
 		    plt::scatter(x_dot, y_dot,dot_size);
 		}
 
+		// starting from the south west point going counterclockwise
 		inline void plot_rotated_box(const Eigen::MatrixXd& R,const Eigen::VectorXd& center, double width,double height){
+			Eigen::VectorXd sw(2);
+			Eigen::VectorXd se(2);
+			Eigen::VectorXd ne(2);
+			Eigen::VectorXd nw(2);
+			std::vector<double> x_coord (5), y_coord(5);
+			//south-west
+			sw[0] = center[0]-width/2;
+			sw[1] = center[1]-height/2;
+			//south-east
+			se[0] = center[0]+width/2;
+			se[1] = center[1]-height/2;
+			//north-east
+			ne[0] = center[0]+width/2;
+			ne[1] = center[1]+height/2;
+			//north-west
+			nw[0] = center[0]-width/2;
+			nw[1] = center[1]+height/2;
 
+
+			// rotate point in the original frame
+			sw = R*sw;
+			se = R*se;
+			ne = R*ne;
+			nw = R*nw;
+
+			x_coord.at(0) = sw[0];
+			y_coord.at(0) = sw[1];
+		    x_coord.at(1) = se[0];
+		    y_coord.at(1) = se[1];
+		    x_coord.at(2) = ne[0];
+		    y_coord.at(2) = ne[1];
+		    x_coord.at(3) = nw[0];
+		  	y_coord.at(3) = nw[1];
+		  	// i need to repeat the first point to close the figure
+		  	x_coord.at(4) = sw[0];
+		    y_coord.at(4) = sw[1];
+
+		  	plt::plot(x_coord, y_coord);
 		}
 
 		inline void lim_img(int xmin, int xmax, int ymin, int ymax){
