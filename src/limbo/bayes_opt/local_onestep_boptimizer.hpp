@@ -311,8 +311,8 @@ namespace limbo {
 				std::ofstream file_x("test_x.txt");
 				std::ofstream file_y("test_y.txt");
 				std::ofstream file_z("test_z.txt");
-				std::vector<Eigen::MatrixXd> grid                    = tools::meshgrid_2d(0.1,0,1,0.1,0,1);
-				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.1,0,1,0.1,0,1);
+				std::vector<Eigen::MatrixXd> grid                    = tools::meshgrid_2d(0.01,0,1,0.01,0,1);
+				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.01,0,1,0.01,0,1);
 				Eigen::MatrixXd _z(grid[0].rows(),grid[0].cols());
 
 				for(uint i = 0;i<grid[0].rows();i++){
@@ -320,15 +320,15 @@ namespace limbo {
 						Eigen::VectorXd cur(2);
 						cur[0]   = grid[0](i,j);
 						cur[1]   = grid[1](i,j);
+						std::cout << cur.transpose() << std::endl;
 						auto res = acqui_optimization(cur,false);
 						_z(i,j)  = res.first;
 
 					}
 				}
 
-
-				file_x << grid[0];
-				file_y << grid[1];
+				file_x << grid_scaled_and_rotated[0];
+				file_y << grid_scaled_and_rotated[1];
 				file_z << _z;
 
 				// plot function

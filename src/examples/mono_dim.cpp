@@ -288,7 +288,7 @@ int main()
 	cov = (cov_rot*cov_diag)*cov_rot.transpose();
 	// DEBUG
 	std::cout << "cov = "  << cov << std::endl;
-	int init_sample = 20;
+	int init_sample = 50;
     ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
     for (int i = 0; i < init_sample; i++) {

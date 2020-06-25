@@ -133,10 +133,10 @@ namespace limbo {
 
         	for(unsigned int i = 0;i<y_coord.size();i++){
         		for(unsigned int j = 0;j<x_coord.size();j++){
-        			Eigen::VectorXd cur(2);
+        			//Eigen::VectorXd cur(2);
         			_x(i,j) = x_coord[j];
         			_y(i,j) = y_coord[i];
-        		    res.push_back(cur);
+        		    //res.push_back(cur);
         		}
         	}
         	 res[0]=_x;
