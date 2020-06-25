@@ -120,38 +120,60 @@ namespace limbo {
 		}
 
         // create meshgrid on 2d plane
-        inline std::vector<Eigen::VectorXd> meshgrid_2d(int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
+        inline std::vector<Eigen::MatrixXd> meshgrid_2d(double step_x,double low_x,double high_x,double step_y,double low_y,double high_y){
 
-        	std::vector<Eigen::VectorXd> res;
+        	std::vector<Eigen::MatrixXd> res(2);
+        	int size_x = round((high_x - low_x)/step_x);
+        	int size_y = round((high_y - low_y)/step_y);
         	Eigen::VectorXd x_coord = Eigen::VectorXd::LinSpaced(size_x,low_x,high_x);
         	Eigen::VectorXd y_coord = Eigen::VectorXd::LinSpaced(size_y,low_y,high_y);
 
-        	for(unsigned int i = 0;i<x_coord.size();i++){
-        		for(unsigned int j = 0;j<y_coord.size();i++){
+        	Eigen::MatrixXd _x(x_coord.size(),y_coord.size());
+        	Eigen::MatrixXd _y(x_coord.size(),y_coord.size());
+
+        	for(unsigned int i = 0;i<y_coord.size();i++){
+        		for(unsigned int j = 0;j<x_coord.size();j++){
         			Eigen::VectorXd cur(2);
-        			cur[0] = x_coord[i];
-        		    cur[1] = y_coord[j];
+        			_x(i,j) = x_coord[j];
+        			_y(i,j) = y_coord[i];
         		    res.push_back(cur);
+        		}
+        	}
+        	 res[0]=_x;
+        	 res[1]=_y;
+        	 return res;
+        }
+
+        inline std::vector<Eigen::MatrixXd> rotated_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,double size_x,double low_x,double high_x,double size_y,double low_y,double high_y){
+        	std::vector<Eigen::MatrixXd> res;
+        	res = meshgrid_2d(size_x,low_x,high_x,size_y,low_y,high_y);
+        	for(unsigned int i = 0;i<res[0].rows();i++){
+        		for(unsigned int j = 0;j<res[0].cols();j++){
+        			Eigen::VectorXd cur(2);
+        			cur[0] = res[0](i,j);
+        			cur[1] = res[1](i,j);
+        			cur = rototrasl(cur,mean,R);
+        			res[0](i,j) = cur[0];
+        			res[1](i,j) = cur[1];
         		}
         	}
         	return res;
         }
 
-        inline std::vector<Eigen::VectorXd> rotated_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
-        	std::vector<Eigen::VectorXd> res;
-        	res = meshgrid_2d(size_x,low_x,high_x,size_y,low_y,high_y);
-        	for(unsigned int i =0; i<res.size();i++){
-        		res[i] = rototrasl(res[i],mean,R);
-        	}
-        	return res;
-        }
-
-        inline std::vector<Eigen::VectorXd> scale_rot_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,const Eigen::VectorXd& ub, const Eigen::VectorXd& lb,int size_x,int low_x,int high_x,int size_y,int low_y,int high_y){
-			std::vector<Eigen::VectorXd> res;
+        inline std::vector<Eigen::MatrixXd> scale_rot_meshgrid_2d(const Eigen::VectorXd& mean, const Eigen::MatrixXd& R,const Eigen::VectorXd& ub, const Eigen::VectorXd& lb,double size_x,double low_x,int high_x,double size_y,double low_y,double high_y){
+			std::vector<Eigen::MatrixXd> res;
 			res = meshgrid_2d(size_x,low_x,high_x,size_y,low_y,high_y);
-			for(unsigned int i =0; i<res.size();i++){
-				res[i] = bound_transf(res[i],ub,lb);
-				res[i] = rototrasl(res[i],mean,R);
+
+			for(unsigned int i = 0;i<res[0].rows();i++){
+				for(unsigned int j = 0;j<res[0].cols();j++){
+					Eigen::VectorXd cur(2);
+					cur[0] = res[0](i,j);
+					cur[1] = res[1](i,j);
+					cur = bound_transf(cur,ub,lb);
+					cur = rototrasl(cur,mean,R);
+					res[0](i,j) = cur[0];
+					res[1](i,j) = cur[1];
+				}
 			}
 			return res;
 		}

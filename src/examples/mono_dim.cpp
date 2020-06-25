@@ -271,7 +271,8 @@ int main()
     UB << 100,100;
     LB << 13 ,0;
 
-    Eigen::VectorXd mean = 50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
+    Eigen::VectorXd mean(2); //50*Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
+    mean << 14.6111,2.1491;
     Eigen::VectorXd diag = Eigen::VectorXd::Ones(fit_eval_no_transf::dim_in());
 	Eigen::MatrixXd cov_diag = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());
 	Eigen::MatrixXd cov_rot  = Eigen::MatrixXd::Zero(fit_eval_no_transf::dim_in(),fit_eval_no_transf::dim_in());

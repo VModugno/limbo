@@ -302,26 +302,35 @@ namespace limbo {
 
 				Eigen::VectorXd max_sample = acqui_optimizer(acqui_optimization, starting_point, Params::bayes_opt_bobase::bounded());
 
-
-
 				// bring to the original space the max sample (it is in zero one at this point)
 				max_sample = tools::bound_transf(max_sample,_d._zoom_bound,-_d._zoom_bound);
 				max_sample = tools::rototrasl(max_sample,_d._mean,_d._rot);
 
 				// DEBUG
 				// save data to file for inspection with matlab
-				std::ofstream file("test.txt");
-				std::vector<Eigen::VectorXd> grid                    = tools::meshgrid_2d(0.1,0,1,0.1,0,1);
-				std::vector<Eigen::VectorXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.1,0,1,0.1,0,1);
-				for(uint i = 0;i<grid.size();i++){
-					Eigen::VectorXd cur(3);
-					//double res = acqui_optimization(grid[i],false);
-					double res = 1;
-					cur[0]     = grid_scaled_and_rotated[i][0];
-				    cur[1]     = grid_scaled_and_rotated[i][1];
-				    cur[2]     = res;
-				    file << cur.transpose() << '\n';
+				std::ofstream file_x("test_x.txt");
+				std::ofstream file_y("test_y.txt");
+				std::ofstream file_z("test_z.txt");
+				std::vector<Eigen::MatrixXd> grid                    = tools::meshgrid_2d(0.1,0,1,0.1,0,1);
+				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.1,0,1,0.1,0,1);
+				Eigen::MatrixXd _z(grid[0].rows(),grid[0].cols());
+
+				for(uint i = 0;i<grid[0].rows();i++){
+					for(uint j = 0;j<grid[0].cols();j++){
+						Eigen::VectorXd cur(2);
+						cur[0]   = grid[0](i,j);
+						cur[1]   = grid[1](i,j);
+						auto res = acqui_optimization(cur,false);
+						_z(i,j)  = res.first;
+
+					}
 				}
+
+
+				file_x << grid[0];
+				file_y << grid[1];
+				file_z << _z;
+
 				// plot function
 				tools::plot_point(_d._mean, 10);
 				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
