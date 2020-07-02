@@ -98,6 +98,7 @@ namespace limbo {
     	void compute_bound_and_rot(){
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
     		_rot        = eig.eigenvectors().real(); // check transposition if it is correct
+    		// DEBUG
     		std::cout << "rotation matrix = "<< _rot << std::endl;
     		_zoom_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     		//DEBUG
@@ -202,6 +203,8 @@ namespace limbo {
             	// here i rebuild the model
             	double dist = _d._zoom_bound.maxCoeff();
                 init_local_model(dist);
+                // initialize the best available observation so far
+                init_best_constrained_obseravation();
             }
             // the hyp is that I receive a sample in the original dimension and i transform to the [0,1] bound
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
@@ -231,6 +234,8 @@ namespace limbo {
 				// here i rebuild the model
 				double dist = _d._zoom_bound.maxCoeff();
 				init_local_model(dist);
+				// initialize the best available observation so far
+				init_best_constrained_obseravation();
 			}
 
             // we need to call it at every new sample from (1+1-cmaes)
@@ -246,6 +251,12 @@ namespace limbo {
             		// even if the mean did not change i update the particle data to get the latest covariance matrix
             	    _d.update(d);
 					update_data(sample,sol);
+					update_best_constrained_obseravation();
+					//update stats
+					this->_update_stats(*this, afun);
+
+					this->_current_iteration++;
+					this->_total_iterations++;
             	}
             	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
             		//update particle data
@@ -260,6 +271,8 @@ namespace limbo {
 					double dist = _d._zoom_bound.maxCoeff();
 					// here i rebuild the model
 					init_local_model(dist);
+					// update fmax
+					update_best_constrained_obseravation();
 					// update stats
 					this->_update_stats(*this, afun);
 
@@ -292,7 +305,7 @@ namespace limbo {
 				// update rotation matrix and bound for the zooming step (optimization)
 				_d.compute_bound_and_rot();
 				// optimization step
-				acquisition_function_t acqui(_model,_models_constr, strategy, this->_current_iteration);
+				acquisition_function_t acqui(_model,_models_constr, strategy,_f_max, this->_current_iteration);
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(tools::rototrasl(tools::bound_transf(x,_d._zoom_bound,-_d._zoom_bound),_d._mean,_d._rot), afun, g); };
 				// here i select point in the [0,1] than i transform them in the covariance space and finally i transform them back in the original space
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
@@ -311,30 +324,67 @@ namespace limbo {
 				std::ofstream file_x("test_x.txt");
 				std::ofstream file_y("test_y.txt");
 				std::ofstream file_z("test_z.txt");
-				std::vector<Eigen::MatrixXd> grid                    = tools::meshgrid_2d(0.01,0,1,0.01,0,1);
-				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,0.01,0,1,0.01,0,1);
+				double x_resolution = 0.01;
+				double y_resolution = 0.01;
+				std::vector<Eigen::MatrixXd> grid                    = tools::meshgrid_2d(x_resolution,0,1,y_resolution,0,1);
+				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,x_resolution,0,1,y_resolution,0,1);
 				Eigen::MatrixXd _z(grid[0].rows(),grid[0].cols());
-
+				// saving acquisition function value
+				//DEBUG
+				std::cout << "starting visualization ------------------------------------------------------------" << std::endl;
 				for(uint i = 0;i<grid[0].rows();i++){
 					for(uint j = 0;j<grid[0].cols();j++){
 						Eigen::VectorXd cur(2);
 						cur[0]   = grid[0](i,j);
 						cur[1]   = grid[1](i,j);
+						// DEBUG
 						std::cout << cur.transpose() << std::endl;
 						auto res = acqui_optimization(cur,false);
 						_z(i,j)  = res.first;
 
 					}
 				}
+				//DEBUG
+			    std::cout << "------------------------------------------------------------" << std::endl;
 
 				file_x << grid_scaled_and_rotated[0];
 				file_y << grid_scaled_and_rotated[1];
 				file_z << _z;
 
+				// saving single GP prediction values
+				for (uint k =0;k<1 + _models_constr.size();k++){
+					std::string name = "test_GP" + std::to_string(k) + ".txt";
+					std::ofstream cur_file_GP(name);
+					Eigen::MatrixXd cur_gp(grid_scaled_and_rotated[0].rows(),grid_scaled_and_rotated[0].cols());
+					for(uint i = 0;i<grid_scaled_and_rotated[0].rows();i++){
+						for(uint j = 0;j<grid_scaled_and_rotated[0].cols();j++){
+							Eigen::VectorXd cur(2);
+							Eigen::VectorXd mu;
+							double sigma_sq;
+							cur[0]   = grid_scaled_and_rotated[0](i,j);
+							cur[1]   = grid_scaled_and_rotated[1](i,j);
+							//std::cout << cur.transpose() << std::endl;
+							if(k == 0){
+								std::tie(mu, sigma_sq) = _model.query(cur);
+							}
+							else{
+								std::tie(mu, sigma_sq) = _models_constr[k-1].query(cur);
+							}
+
+							auto res = acqui_optimization(cur,false);
+							cur_gp(i,j)  = afun(mu);
+						}
+					}
+					cur_file_GP << cur_gp;
+				}
+
+
+
 				// plot function
 				tools::plot_point(_d._mean, 10);
 				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
 				tools::plot_point(max_sample, 10);
+				tools::plot_points(this->_samples,10);
 				tools::lim_img(-100,200,-100,200);
 				tools::show_img();
 				//------------------------------------------------------------------
@@ -367,11 +417,6 @@ namespace limbo {
 					else if(_constrained)
 						_models_constr[i-1].add_sample(this->_samples.back(), this->_observations[i].back());
 				}
-				// VALE update stats
-				this->_update_stats(*this, afun);
-
-				this->_current_iteration++;
-			    this->_total_iterations++;
 
             }
 
@@ -469,6 +514,35 @@ namespace limbo {
 			}
 
 
+			void init_best_constrained_obseravation(){
+				_f_max = -100000000;
+				for(uint j = 0;j < this->_observations[0].size();j++){
+					bool satisfy_constraints = true;
+					for(uint i=1; i <  _constr_dim_out;i++){
+						if(this->_observations[i][j] > 0){
+							satisfy_constraints = false;
+							break;
+						}
+					}
+					if(satisfy_constraints && this->_observations[0][j] > _f_max){
+						_f_max = this->_observations[0][j];
+					}
+				}
+			}
+			void update_best_constrained_obseravation(){
+				bool satisfy_constraints = true;
+				for(uint i=1; i <  _constr_dim_out;i++){
+					if(this->_observations[i].tail(1) > 0){
+						satisfy_constraints = false;
+						break;
+					}
+				}
+				if(satisfy_constraints && this->_observations[0].tail(1) > _f_max){
+					_f_max = this->_observations[0].tail(1);
+				}
+			}
+
+
             const model_t& model() const { return _model; }
             // VALE
             const std::vector<model_t>& models_constr() const {return _models_constr;}
@@ -481,10 +555,9 @@ namespace limbo {
             int _dim_in;
 			int _dim_out;
 			int _constr_dim_out;
+			double _f_max;
 			Eigen::VectorXd _ub;
 			Eigen::VectorXd _lb;
-
-
 
         };
 

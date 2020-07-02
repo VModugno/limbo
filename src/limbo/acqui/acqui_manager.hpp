@@ -34,14 +34,14 @@ namespace limbo {
         public:
 
 
-        	AcquiManager(const Model& model, const std::vector<Model>&  model_constr, std::string strategy, int iteration = 0)
+        	AcquiManager(const Model& model, const std::vector<Model>&  model_constr, std::string strategy,double f_max = 0, int iteration = 0)
            {
         		_dim_in   = model.dim_in();
         		_dim_out  = model.dim_out();
         		_strategy = strategy;
         		// adding here elements
         		if(_strategy.compare("eci") == 0){
-        			_eci = std::make_shared< acqui::ECI<Params, Model> >(model,model_constr,iteration);
+        			_eci = std::make_shared< acqui::ECI<Params, Model> >(model,model_constr,f_max,iteration);
         		}
         		else if(_strategy.compare("ucb") == 0){
         			_ucb = std::make_shared< acqui::UCB<Params, Model> >(model,model_constr,iteration);

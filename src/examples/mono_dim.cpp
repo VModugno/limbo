@@ -261,10 +261,10 @@ int main()
                   << opt_one_step.best_sample().transpose() << std::endl;*/
 
     // TODO properly initialize the data here
-    double sigma1    = 10;
-    double sigma2    = 1;
-    double sigma     = 1.5;
-    double theta_deg = 45;
+    double sigma1    = 0.1;
+    double sigma2    = 0.1;
+    double sigma     = 1;
+    double theta_deg = 0;
     double theta = theta_deg*(M_PI/180);
     Eigen::VectorXd UB(2);
     Eigen::VectorXd LB(2);
@@ -291,12 +291,25 @@ int main()
 	int init_sample = 50;
     ParticleData d = ParticleData(sigma,mean,cov);
     std::vector<Eigen::VectorXd> list_sample;
-    for (int i = 0; i < init_sample; i++) {
+    // for sampling point in a box
+    /*for (int i = 0; i < init_sample; i++) {
     	auto new_sample = tools::random_vector(fit_eval_no_transf::dim_in(), UB,LB);
     	// DEBUG
     	std::cout << new_sample.transpose()<< std::endl;
     	list_sample.push_back(new_sample);
+    }*/
+    //for sampling point in a rotated box
+    boost::math::chi_squared mydist(cov.rows());
+	double k = quantile(mydist, 0.95);
+    Eigen::VectorXd zoom_bound = k * (diag.cwiseAbs()).cwiseSqrt() *sigma;
+
+    for (int i = 0; i < init_sample; i++) {
+		auto new_sample   = tools::random_vector(fit_eval_no_transf::dim_in(),Params::bayes_opt_bobase::bounded());
+		Eigen::VectorXd a = tools::bound_transf(new_sample,zoom_bound,-zoom_bound);
+		Eigen::VectorXd b = tools::rototrasl(a,mean,cov_rot);
+		list_sample.push_back(b);
     }
+
     // add mean to be sure i'm adding at least the mean
     list_sample.push_back(mean);
     bayes_opt::LocalOneStepBOptimizer <Params, modelfun<GP_t>, statsfun<stat_t>, acquifun<Acqui_t_one_step>> local_opt_one_step;

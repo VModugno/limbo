@@ -185,6 +185,12 @@ namespace limbo {
 		    y_dot.at(0) = x[1];
 		    plt::scatter(x_dot, y_dot,dot_size);
 		}
+		// drawing function
+		inline void plot_points(const std::vector<Eigen::VectorXd>& x, int dot_size){
+			for(uint i=0;i<x.size();i++){
+				plot_point(x[i],dot_size);
+			}
+		}
 
 		// starting from the south west point going counterclockwise
 		inline void plot_rotated_box(const Eigen::MatrixXd& R,const Eigen::VectorXd& center, double width,double height){

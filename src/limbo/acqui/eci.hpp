@@ -52,7 +52,7 @@
 #include <vector>
 #include <math.h>
 
-
+// Careful! this version of eci works only with local_onestep_boptimizer
 
 namespace limbo {
     namespace defaults {
@@ -101,11 +101,11 @@ namespace limbo {
             //    _constrained = Params::bayes_opt_boptimizer::constrained();
             //}
            ECI(){};
-           ECI(const Model& model,const std::vector<Model>&  model_constr, int iteration = 0): _model(model), _models_constr(model_constr),_nb_samples(-1)
+           ECI(const Model& model,const std::vector<Model>&  model_constr,double fmax, int iteration = 0): _model(model), _models_constr(model_constr),_nb_samples(-1)
            {
                 _xi = Params::acqui_eci::xi();
                 _constrained = Params::bayes_opt_bobase::constrained();
-                _f_max = -10000000;
+                _f_max = fmax;
            }
 
             size_t dim_in() const { return _model.dim_in(); }
@@ -116,7 +116,7 @@ namespace limbo {
             template <typename AggregatorFunction>
             opt::eval_t operator()(const Eigen::VectorXd& v, const AggregatorFunction& afun, bool gradient)
             {
-            	// VALE
+            	// DEBUG
             	//std::cout << "sono dentro eci!" << std::endl;
                 assert(!gradient);
                 Eigen::VectorXd mu;
@@ -143,8 +143,13 @@ namespace limbo {
 					//std::cout << "_f_max = "<< _f_max <<std::endl;
 				}
 
+
 			    z = (afun(mu) - _f_max - _xi)/sigma;
+			    //DEBUG
+			    //std::cout << "z = " << z << std::endl;
                 ret1 = (afun(mu) - _f_max -_xi) * my_cdf(0,1,z) + sigma*my_pdf(0,1,z);
+
+
 
                 ret2 = 1.0;
                 if(_constrained){
@@ -153,13 +158,13 @@ namespace limbo {
 						sigma = std::sqrt(sigma_sq);
 						// DEBUG
 						//if(afun(mu)<0)
-						//std::cout << "constr["<<i<<"]  mean = "<<afun(mu)<< " var_sq = "<<sigma_sq<<" var =" << sigma<< std::endl;
+						std::cout << "constr["<<i<<"]  mean = "<<afun(mu)<< " var_sq = "<<sigma_sq<<" var =" << sigma<< std::endl;
 						ret2 = ret2* my_cdf(afun(mu),sigma,0);
 					}
                 }
                 //DEBUG
                 //std::cout <<"input = " << v.transpose() << std::endl;
-                //std::cout << "ret1 = "<< ret1<< " ret2 = "<< ret2 << std::endl;
+                std::cout << "ret1 = "<< ret1<< " ret2 = "<< ret2 << std::endl;
                 return opt::no_grad(ret2*ret1);
             }
 
