@@ -305,7 +305,9 @@ namespace limbo {
 				// update rotation matrix and bound for the zooming step (optimization)
 				_d.compute_bound_and_rot();
 				// optimization step
-				acquisition_function_t acqui(_model,_models_constr, strategy,_f_max, this->_current_iteration);
+				//DEBUG
+				std::cout << "f_max = " << afun(_f_max) << std::endl;
+				acquisition_function_t acqui(_model,_models_constr, strategy,afun(_f_max), this->_current_iteration);
 				auto acqui_optimization = [&](const Eigen::VectorXd& x, bool g) { return acqui(tools::rototrasl(tools::bound_transf(x,_d._zoom_bound,-_d._zoom_bound),_d._mean,_d._rot), afun, g); };
 				// here i select point in the [0,1] than i transform them in the covariance space and finally i transform them back in the original space
 				Eigen::VectorXd starting_point = tools::random_vector(_dim_in, Params::bayes_opt_bobase::bounded());
@@ -338,7 +340,7 @@ namespace limbo {
 						cur[0]   = grid[0](i,j);
 						cur[1]   = grid[1](i,j);
 						// DEBUG
-						std::cout << cur.transpose() << std::endl;
+						//std::cout << cur.transpose() << std::endl;
 						auto res = acqui_optimization(cur,false);
 						_z(i,j)  = res.first;
 
@@ -512,34 +514,50 @@ namespace limbo {
 				auto max_e = std::max_element(rewards.begin(), rewards.end());
 				return this->_samples[std::distance(rewards.begin(), max_e)];
 			}
-
-
-			void init_best_constrained_obseravation(){
-				_f_max = -100000000;
+			// the hypothesis si that at the beginning there is at least one feasible point
+			template <typename AggregatorFunction = FirstElem>
+			void init_best_constrained_obseravation(const AggregatorFunction& afun = AggregatorFunction()){
+				_f_max = -10000000*Eigen::VectorXd::Ones(_dim_out);
+				_best_sample_index = -1;
 				for(uint j = 0;j < this->_observations[0].size();j++){
 					bool satisfy_constraints = true;
-					for(uint i=1; i <  _constr_dim_out;i++){
-						if(this->_observations[i][j] > 0){
+					for(int i=1; i <= _constr_dim_out;i++){
+						if(this->_observations[i][j][0] > 0){
 							satisfy_constraints = false;
 							break;
 						}
 					}
-					if(satisfy_constraints && this->_observations[0][j] > _f_max){
+					if(satisfy_constraints && afun(this->_observations[0][j]) > afun(_f_max) ){
 						_f_max = this->_observations[0][j];
+						_best_sample_index = j;
 					}
 				}
 			}
-			void update_best_constrained_obseravation(){
+
+			template <typename AggregatorFunction = FirstElem>
+			void update_best_constrained_obseravation(const AggregatorFunction& afun = AggregatorFunction()){
 				bool satisfy_constraints = true;
-				for(uint i=1; i <  _constr_dim_out;i++){
-					if(this->_observations[i].tail(1) > 0){
+
+				for(int i=1; i <= _constr_dim_out;i++){
+					if(this->_observations[i].back()[0] > 0){
 						satisfy_constraints = false;
 						break;
 					}
 				}
-				if(satisfy_constraints && this->_observations[0].tail(1) > _f_max){
-					_f_max = this->_observations[0].tail(1);
+				if(satisfy_constraints && afun(this->_observations[0].back()) > afun(_f_max) ){
+					_f_max = this->_observations[0].back();
+					_best_sample_index = this->_observations[0].size() - 1;
 				}
+			}
+
+			template <typename AggregatorFunction = FirstElem>
+		    Eigen::VectorXd best_constrained_sample(const AggregatorFunction& afun = AggregatorFunction()){
+				return this->_samples[_best_sample_index];
+			}
+
+			template <typename AggregatorFunction = FirstElem>
+			double best_constrained_observation(const AggregatorFunction& afun = AggregatorFunction()){
+				return afun(_f_max);
 			}
 
 
@@ -555,7 +573,8 @@ namespace limbo {
             int _dim_in;
 			int _dim_out;
 			int _constr_dim_out;
-			double _f_max;
+			Eigen::VectorXd _f_max;
+			int _best_sample_index;
 			Eigen::VectorXd _ub;
 			Eigen::VectorXd _lb;
 

@@ -321,8 +321,8 @@ int main()
     // tell
     local_opt_one_step.update_bo(x_best2,sol,d);
     // results
-    std::cout << local_opt_one_step.best_observation() << " res  "
-                      << local_opt_one_step.best_sample().transpose() << std::endl;
+    std::cout << local_opt_one_step.best_constrained_observation() << " res  "
+                      << local_opt_one_step.best_constrained_sample().transpose() << std::endl;
 
     // DEBUG test optimal point
     fit_eval_no_transf val_func;

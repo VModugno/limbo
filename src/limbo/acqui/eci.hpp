@@ -59,6 +59,7 @@ namespace limbo {
         struct acqui_eci {
             /// @ingroup acqui_defaults
             BO_PARAM(double, xi, 0.9);
+            BO_PARAM(double, max_percent, 0.1);
         };
     }
    // m = mean
@@ -129,7 +130,7 @@ namespace limbo {
 				if (sigma < 1e-10 || _model.samples().size() < 1)
 					return opt::no_grad(0.0);
 
-				if (_nb_samples != _model.nb_samples()) {
+				/*if (_nb_samples != _model.nb_samples()) {
 					std::vector<double> rewards;
 					for (auto s : _model.samples()) {
 						// DEBUG
@@ -141,9 +142,9 @@ namespace limbo {
 					_f_max = *std::max_element(rewards.begin(), rewards.end());
 					// DEBUG
 					//std::cout << "_f_max = "<< _f_max <<std::endl;
-				}
-
-
+				}*/
+				//_f_max = 100;
+				//std::cout << "fmax = " << _f_max <<std::endl;
 			    z = (afun(mu) - _f_max - _xi)/sigma;
 			    //DEBUG
 			    //std::cout << "z = " << z << std::endl;
@@ -158,13 +159,13 @@ namespace limbo {
 						sigma = std::sqrt(sigma_sq);
 						// DEBUG
 						//if(afun(mu)<0)
-						std::cout << "constr["<<i<<"]  mean = "<<afun(mu)<< " var_sq = "<<sigma_sq<<" var =" << sigma<< std::endl;
+						//std::cout << "constr["<<i<<"]  mean = "<<afun(mu)<< " var_sq = "<<sigma_sq<<" var =" << sigma<< std::endl;
 						ret2 = ret2* my_cdf(afun(mu),sigma,0);
 					}
                 }
                 //DEBUG
                 //std::cout <<"input = " << v.transpose() << std::endl;
-                std::cout << "ret1 = "<< ret1<< " ret2 = "<< ret2 << std::endl;
+                //std::cout << "ret1 = "<< ret1<< " ret2 = "<< ret2 << std::endl;
                 return opt::no_grad(ret2*ret1);
             }
 
