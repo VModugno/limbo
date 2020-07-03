@@ -325,8 +325,8 @@ int main()
                       << local_opt_one_step.best_constrained_sample().transpose() << std::endl;
 
     // DEBUG test optimal point
-    fit_eval_no_transf val_func;
-    std::cout << "func value at the optimal point = " << val_func(local_opt_one_step.best_sample().transpose()) << std::endl;
+    //fit_eval_no_transf val_func;
+    //std::cout << "func value at the optimal point = " << val_func(local_opt_one_step.best_sample().transpose()) << std::endl;
 
     return 0;
 }

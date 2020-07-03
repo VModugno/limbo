@@ -321,8 +321,8 @@ namespace limbo {
 				max_sample = tools::bound_transf(max_sample,_d._zoom_bound,-_d._zoom_bound);
 				max_sample = tools::rototrasl(max_sample,_d._mean,_d._rot);
 
-				// DEBUG
-				// save data to file for inspection with matlab
+                #ifdef SAVE_DATA_BO
+				// save data to file for inspection with matplotlib
 				std::ofstream file_x("test_x.txt");
 				std::ofstream file_y("test_y.txt");
 				std::ofstream file_z("test_z.txt");
@@ -332,8 +332,9 @@ namespace limbo {
 				std::vector<Eigen::MatrixXd> grid_scaled_and_rotated = tools::scale_rot_meshgrid_2d(_d._mean, _d._rot,_d._zoom_bound, -_d._zoom_bound,x_resolution,0,1,y_resolution,0,1);
 				Eigen::MatrixXd _z(grid[0].rows(),grid[0].cols());
 				// saving acquisition function value
-				//DEBUG
-				std::cout << "starting visualization ------------------------------------------------------------" << std::endl;
+
+
+
 				for(uint i = 0;i<grid[0].rows();i++){
 					for(uint j = 0;j<grid[0].cols();j++){
 						Eigen::VectorXd cur(2);
@@ -346,8 +347,6 @@ namespace limbo {
 
 					}
 				}
-				//DEBUG
-			    std::cout << "------------------------------------------------------------" << std::endl;
 
 				file_x << grid_scaled_and_rotated[0];
 				file_y << grid_scaled_and_rotated[1];
@@ -379,9 +378,9 @@ namespace limbo {
 					}
 					cur_file_GP << cur_gp;
 				}
+				#endif
 
-
-
+				#ifdef MATPLOTLIB_BO
 				// plot function
 				tools::plot_point(_d._mean, 10);
 				tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
@@ -390,6 +389,7 @@ namespace limbo {
 				tools::lim_img(-100,200,-100,200);
 				tools::show_img();
 				//------------------------------------------------------------------
+                #endif
 
 				return max_sample;
 
