@@ -119,6 +119,13 @@ namespace limbo {
 			return z;
 		}
 
+		//rotate the point
+		inline Eigen::VectorXd anti_rototrasl(const Eigen::VectorXd& x, const Eigen::VectorXd& mean, const Eigen::MatrixXd& R_inv){
+			Eigen::VectorXd z(x.size());
+			z = R_inv*(x-mean); //z=R^(-1)(x-mean);
+			return z;
+		}
+
         // create meshgrid on 2d plane
         inline std::vector<Eigen::MatrixXd> meshgrid_2d(double step_x,double low_x,double high_x,double step_y,double low_y,double high_y){
 
@@ -177,6 +184,7 @@ namespace limbo {
 			}
 			return res;
 		}
+
 
 		// drawing function
 		inline void plot_point(const Eigen::VectorXd& x, int dot_size){

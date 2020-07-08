@@ -59,7 +59,7 @@ namespace limbo {
         struct acqui_eci {
             /// @ingroup acqui_defaults
             BO_PARAM(double, xi, 0.9);
-            BO_PARAM(double, max_percent, 0.1);
+            //BO_PARAM(double, max_percent, 0.1);
         };
     }
    // m = mean

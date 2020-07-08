@@ -56,6 +56,7 @@ namespace limbo {
     	double          _sigma;
     	Eigen::VectorXd _mean;
     	Eigen::MatrixXd _cov;
+    	Eigen::VectorXd _eig;
     	Eigen::MatrixXd _rot;
     	Eigen::VectorXd _zoom_bound;
 
@@ -77,7 +78,7 @@ namespace limbo {
     		_zoom_bound = Eigen::VectorXd::Zero(cov.rows());
     		_rot         = Eigen::MatrixXd::Zero(cov.rows(),cov.cols());
     		boost::math::chi_squared mydist(cov.rows());
-    		_k           = quantile(mydist, 0.95);
+    		_k           = quantile(mydist, 0.6);
 
 
     	};
@@ -99,14 +100,23 @@ namespace limbo {
     		Eigen::EigenSolver<Eigen::MatrixXd> eig(_cov);
     		_rot        = eig.eigenvectors().real(); // check transposition if it is correct
     		// DEBUG
-    		std::cout << "rotation matrix = "<< _rot << std::endl;
+    		//std::cout << "rotation matrix = "<< _rot << std::endl;
+    		_eig = eig.eigenvalues().cwiseAbs();
     		_zoom_bound = _k * ((eig.eigenvalues()).cwiseAbs()).cwiseSqrt() *_sigma;
     		//DEBUG
             #ifdef PLOT_BO
     		std::cout << "_rot = " << _rot<<std::endl;
     		std::cout << "_zoom_bound = " << _zoom_bound.transpose()<<std::endl;
 			#endif
-    	}
+    	};
+    	void print(){
+    		std::cout << "particle data" << std::endl;
+    		std::cout << "mean = " << _mean.transpose() << std::endl;
+    		std::cout << "cov  = " << _cov << std::endl;
+    		std::cout << "eig  = " << _eig.transpose()  << std::endl;
+    		std::cout << "sigma = "<< _sigma << std::endl;
+    		std::cout << "_zoom_bound = " << _zoom_bound.transpose() << std::endl;
+    	};
     };
 
 
@@ -179,6 +189,10 @@ namespace limbo {
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, const Eigen::VectorXd& UB, const Eigen::VectorXd& LB, const AggregatorFunction& afun = AggregatorFunction()){
 
+            	// DEBUG
+				for(uint i = 0;i<init_list.size();i++)
+					std::cout << init_list[i].transpose() << std::endl;
+
             	_constrained = Params::bayes_opt_bobase::constrained();
             	_d.update(d);
             	_d.compute_bound_and_rot();
@@ -200,15 +214,18 @@ namespace limbo {
             		//Eigen::VectorXd sample = bound_anti_transf(init_list[i], _ub, _lb);
 					this->eval_and_add(sfun,init_list[i]);
 				}
-            	// here i rebuild the model
-            	double dist = _d._zoom_bound.maxCoeff();
-                init_local_model(dist);
+            	// here i build the model
+                init_local_model();
                 // initialize the best available observation so far
-                init_best_constrained_obseravation();
+                init_best_constrained_observation();
             }
             // the hyp is that I receive a sample in the original dimension and i transform to the [0,1] bound
             template <typename StateFunction, typename AggregatorFunction = FirstElem>
             void init(const StateFunction& sfun, const ParticleData& d, const std::vector<Eigen::VectorXd>& init_list, const std::vector<Eigen::VectorXd>& obs, const Eigen::VectorXd& UB, const Eigen::VectorXd& LB, const AggregatorFunction& afun = AggregatorFunction()){
+
+            	// DEBUG
+            	for(uint i = 0;i<init_list.size();i++)
+            		std::cout << init_list[i].transpose() << std::endl;
 
 				_constrained = Params::bayes_opt_bobase::constrained();
 				_d.update(d);
@@ -231,11 +248,10 @@ namespace limbo {
 					//Eigen::VectorXd sample = bound_anti_transf(init_list[i], _ub, _lb);
 					this->add_new_sample(init_list[i],obs[i]);
 				}
-				// here i rebuild the model
-				double dist = _d._zoom_bound.maxCoeff();
-				init_local_model(dist);
+				// here i build the model
+				init_local_model();
 				// initialize the best available observation so far
-				init_best_constrained_obseravation();
+				init_best_constrained_observation();
 			}
 
             // we need to call it at every new sample from (1+1-cmaes)
@@ -243,7 +259,8 @@ namespace limbo {
 		    void update_bo(const Eigen::VectorXd& sample,const Eigen::VectorXd& sol, const ParticleData& d, const AggregatorFunction& afun = AggregatorFunction()){
 
             	// we need to transform back the sample from its bound to zero one range for each dimension
-
+            	// DEBUG
+            	_d.print();
 
             	if(_d == d){ // we need to add the current point to the one we are working on (the particle did not  move)
 					// TOCHECK
@@ -251,7 +268,11 @@ namespace limbo {
             		// even if the mean did not change i update the particle data to get the latest covariance matrix
             	    _d.update(d);
 					update_data(sample,sol);
-					update_best_constrained_obseravation();
+					update_best_constrained_observation();
+					// DEBUG
+					std::cout << "adding point to the GPs"<< std::endl;
+					std::cout << "number of points in model = " << _model.samples().size() <<std::endl;
+
 					//update stats
 					this->_update_stats(*this, afun);
 
@@ -261,20 +282,22 @@ namespace limbo {
             	else{  // we need to create a new local gp model (the particle is moving so we need to ditch the old gp model and create a new one)
             		//update particle data
 					_d.update(d);
-					// update rotation matrix and bounds (i have to do this here in order to ge the point close to the current meand and build the new local GP)
+					// update rotation matrix and bounds (i have to do this here in order to get the point close to the current meand and build the new local GP)
 					_d.compute_bound_and_rot();
 					// add current sample to bo_base
 					//this->add_new_sample(bound_anti_transf(sample,_ub, _lb),sol);
 					// TOCHECK
 					this->add_new_sample(sample,sol);
 					// check if i can reuse some of the older points
-					double dist = _d._zoom_bound.maxCoeff();
 					// here i rebuild the model
-					init_local_model(dist);
+					init_local_model();
 					// update fmax
-					update_best_constrained_obseravation();
+					update_best_constrained_observation();
 					// update stats
 					this->_update_stats(*this, afun);
+					// DEBUG
+					std::cout << "reconstructing the gp"<< std::endl;
+					std::cout << "number of points in model  after rebuilding it = " << _model.samples().size() <<std::endl;
 
 					this->_current_iteration++;
 					this->_total_iterations++;
@@ -423,7 +446,9 @@ namespace limbo {
             }
 
             // here i want to do side effect on  the last two inputs
-            void init_local_model(double dist){
+            void init_local_model(){
+
+            	double dist = _d._zoom_bound.maxCoeff();
             	std::vector<Eigen::VectorXd>  local_sample;
             	std::vector< std::vector<Eigen::VectorXd>> local_obs;
 
@@ -446,19 +471,18 @@ namespace limbo {
 						std::vector<Eigen::VectorXd> cur;
 						local_obs.push_back(cur);
 					}
-
             	}
 
-            	// find samples close to mean
-            	for(uint i =0;i<this->_samples.size();i++){
-            		double diff =  (this->_samples[i] - _d._mean).norm();
-            		if(diff <= dist){
-            			local_sample.push_back(this->_samples[i]);
-            			for(uint j = 0;j< this->_observations.size();j++){
-            				local_obs[j].push_back(this->_observations[j][i]);
-            			}
-            		}
-            	}
+            	find_samples_in_hyp_rectangle(local_sample,local_obs);
+            	//find_samples_in_sphere(dist,local_sample,local_obs);
+            	// DEBUG
+            	tools::plot_point(_d._mean, 10);
+                tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
+                tools::plot_points(local_sample,10);
+                tools::lim_img(-100,200,-100,200);
+                tools::show_img();
+
+
             	// compute gp models (if i have no local sample i rise an error)
             	if(local_sample.size()>0){
 					for(uint i = 0;i<this->_observations.size();i++){
@@ -469,7 +493,7 @@ namespace limbo {
 						}
 					}
             	}else{
-            		std::cout<< "local sample cannot be empty and it needs to be fixed!"<< std::endl;
+            		std::cerr<< "local sample cannot be empty! fix it!"<< std::endl;
             	}
             }
 
@@ -487,6 +511,7 @@ namespace limbo {
 				double sigma  = std::sqrt(sigma_sq);
 				double diff   = abs(afun(mu) - afun(real_mu));
 				// DEBUG
+				std::cout << "current sample in checking model = "<< sample.transpose()<<std::endl;
 			    std::cout<<"surrogate model error = "<<diff<<std::endl;
 				double thresh = Params::local_bayes_opt_onestep_boptimizer::thresh();
 				if( diff < thresh)
@@ -514,9 +539,10 @@ namespace limbo {
 				auto max_e = std::max_element(rewards.begin(), rewards.end());
 				return this->_samples[std::distance(rewards.begin(), max_e)];
 			}
-			// the hypothesis si that at the beginning there is at least one feasible point
+
+			// the hypothesis is that at the beginning there is at least one feasible point
 			template <typename AggregatorFunction = FirstElem>
-			void init_best_constrained_obseravation(const AggregatorFunction& afun = AggregatorFunction()){
+			void init_best_constrained_observation(const AggregatorFunction& afun = AggregatorFunction()){
 				_f_max = -10000000*Eigen::VectorXd::Ones(_dim_out);
 				_best_sample_index = -1;
 				for(uint j = 0;j < this->_observations[0].size();j++){
@@ -535,7 +561,7 @@ namespace limbo {
 			}
 
 			template <typename AggregatorFunction = FirstElem>
-			void update_best_constrained_obseravation(const AggregatorFunction& afun = AggregatorFunction()){
+			void update_best_constrained_observation(const AggregatorFunction& afun = AggregatorFunction()){
 				bool satisfy_constraints = true;
 
 				for(int i=1; i <= _constr_dim_out;i++){
@@ -560,10 +586,49 @@ namespace limbo {
 				return afun(_f_max);
 			}
 
-
             const model_t& model() const { return _model; }
-            // VALE
+
             const std::vector<model_t>& models_constr() const {return _models_constr;}
+
+            // searching point around the current mean
+			void find_samples_in_hyp_rectangle(std::vector<Eigen::VectorXd> &  local_sample, std::vector< std::vector<Eigen::VectorXd>> & local_obs){
+				std::vector<Eigen::VectorXd> rotated_sample;
+				Eigen::MatrixXd R_inv = _d._rot.inverse();
+
+				// first i rotate the point in the local reference system of the particle
+				for(uint i =0;i<this->_samples.size();i++){
+					bool point_inside = true;
+					Eigen::VectorXd rot_sample = tools::anti_rototrasl(this->_samples[i],_d._mean,R_inv);
+					rotated_sample.push_back(rot_sample);
+					// than I check if each coordinate stays inside the hyperrectangle of the current roi (region of interest)
+					for(uint j =0; j < _d._zoom_bound.size();j++){
+						if(rotated_sample[i][j]>_d._zoom_bound[j] && -rotated_sample[i][j]>-_d._zoom_bound[j]){
+							point_inside= false;
+							break;
+						}
+					}
+
+					if(point_inside){
+						local_sample.push_back(this->_samples[i]);
+						for(uint k = 0;k< this->_observations.size();k++){
+							local_obs[k].push_back(this->_observations[k][i]);
+						}
+					}
+				}
+			}
+
+			void find_samples_in_sphere(double dist,std::vector<Eigen::VectorXd> &  local_sample, std::vector< std::vector<Eigen::VectorXd>> & local_obs){
+				// find samples close to mean
+				for(uint i =0;i<this->_samples.size();i++){
+					double diff =  (this->_samples[i] - _d._mean).norm();
+					if(diff <= dist){
+						local_sample.push_back(this->_samples[i]);
+						for(uint j = 0;j< this->_observations.size();j++){
+							local_obs[j].push_back(this->_observations[j][i]);
+						}
+					}
+				}
+			}
 
         protected:
             model_t _model;

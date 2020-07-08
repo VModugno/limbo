@@ -129,7 +129,7 @@ BO_PARAMS(std::cout,
           };)
 
 
-
+// for now I'm using this one
 struct fit_eval_no_transf {
     BO_PARAM(size_t, dim_in, 2);
     BO_PARAM(size_t, dim_out, 1);
