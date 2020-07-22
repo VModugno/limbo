@@ -58,9 +58,12 @@
 #include <random>
 #include <stdlib.h>
 #include <utility>
+#ifdef MATPLOTLIB
 #include "matplotlibcpp.h"
-
 namespace plt = matplotlibcpp;
+#endif
+
+
 
 namespace limbo {
     namespace tools {
@@ -185,7 +188,7 @@ namespace limbo {
 			return res;
 		}
 
-
+		#ifdef MATPLOTLIB
 		// drawing function
 		inline void plot_point(const Eigen::VectorXd& x, int dot_size){
 			std::vector<double> x_dot (1), y_dot(1);
@@ -249,7 +252,7 @@ namespace limbo {
 		inline void show_img(){
 			plt::show();
 		}
-
+		#endif
 
         /// @ingroup tools
         using rdist_double_t = std::uniform_real_distribution<double>;

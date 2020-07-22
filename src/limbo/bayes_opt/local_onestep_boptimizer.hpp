@@ -476,11 +476,13 @@ namespace limbo {
             	find_samples_in_hyp_rectangle(local_sample,local_obs);
             	//find_samples_in_sphere(dist,local_sample,local_obs);
             	// DEBUG
+				#ifdef MATPLOTLIB
             	tools::plot_point(_d._mean, 10);
                 tools::plot_rotated_box(_d._rot,_d._mean, _d._zoom_bound[0]*2, _d._zoom_bound[1]*2);
                 tools::plot_points(local_sample,10);
                 tools::lim_img(-100,200,-100,200);
                 tools::show_img();
+                #endif
 
 
             	// compute gp models (if i have no local sample i rise an error)
